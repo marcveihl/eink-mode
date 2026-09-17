@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# eink — E-Ink Mode, Prototype 0.
+#
+# One command flips the Mac into a monochrome low-stimulation workspace and one
+# flips it back. Every setting it touches is captured BEFORE it is changed and
+# restored from that capture on exit, so pre-existing accessibility settings
+# survive a round trip (PRD 21).
+#
+#   eink on | off | toggle | status
+#
+# Colour temperature is deliberately NOT managed here — f.lux owns that.
+
+set -uo pipefail
+
+STATE_FILE="${EINK_STATE:-$HOME/.local/state/eink/saved-state}"
+CONFIG_FILE="${EINK_CONFIG:-$HOME/.config/eink/config}"
+CTL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/einkctl"
+
+# ---- config (override in $CONFIG_FILE) --------------------------------------
+EINK_BRIGHTNESS=0.35   # 0.0-1.0, or empty to leave brightness alone
+EINK_INVERT=off        # on = also invert colours (Smart/Classic per System Settings)
+EINK_HIDE_DOCK=yes
+# shellcheck source=/dev/null
+[ -f "$CONFIG_FILE" ] && . "$CONFIG_FILE"
+
+[ -x "$CTL" ] || { echo "eink: einkctl not built — run ./build.sh" >&2; exit 1; }
+
+dock_autohide_get() { defaults read com.apple.dock autohide 2>/dev/null || echo 0; }
+
+dock_autohide_set() {
+    # Only bounce the Dock when the value actually changes; killall Dock is
+    # visually disruptive and there is no reason to pay for it on a no-op.
+    [ "$(dock_autohide_get)" = "$1" ] && return 0
+    defaults write com.apple.dock autohide -bool "$([ "$1" = 1 ] && echo true || echo false)"
+    killall Dock 2>/dev/null || true
+}
+
+is_active() { [ -f "$STATE_FILE" ]; }
+
+cmd_on() {
+    if is_active; then echo "eink: already on (state at $STATE_FILE)"; return 0; fi
+
+    mkdir -p "$(dirname "$STATE_FILE")"
+    # Capture first, and only declare the mode active once the capture is on disk.
+    { eval "$("$CTL" state)"
+      echo "PREV_GRAY=$GRAY"
+      echo "PREV_INVERT=$INVERT"
+      echo "PREV_BRIGHTNESS=$BRIGHTNESS"
+      echo "PREV_DOCK_AUTOHIDE=$(dock_autohide_get)"
+      echo "ENTERED_AT=$(date +%s)"
+    } > "$STATE_FILE"
+
+    "$CTL" gray on
+    [ "$EINK_INVERT" = on ] && "$CTL" invert on
+    [ -n "$EINK_BRIGHTNESS" ] && "$CTL" brightness set "$EINK_BRIGHTNESS" 2>/dev/null
+    [ "$EINK_HIDE_DOCK" = yes ] && dock_autohide_set 1
+
+    echo "E-INK MODE ENABLED"
+}
+
+cmd_off() {
+    if ! is_active; then
+        # Fail-safe: no capture to restore from, but never leave the screen grey.
+        "$CTL" gray off; "$CTL" invert off
+        echo "eink: no saved state — forced colour back on"
+        return 0
+    fi
+
+    # shellcheck source=/dev/null
+    . "$STATE_FILE"
+    "$CTL" gray "${PREV_GRAY:-off}"
+    "$CTL" invert "${PREV_INVERT:-off}"
+    [ -n "${PREV_BRIGHTNESS:-}" ] && "$CTL" brightness set "$PREV_BRIGHTNESS" 2>/dev/null
+    dock_autohide_set "${PREV_DOCK_AUTOHIDE:-0}"
+
+    rm -f "$STATE_FILE"
+    echo "E-INK MODE OFF"
+}
+
+cmd_status() {
+    if is_active; then
+        # shellcheck source=/dev/null
+        . "$STATE_FILE"
+        local mins=$(( ( $(date +%s) - ${ENTERED_AT:-0} ) / 60 ))
+        echo "E-Ink Mode: ON  (${mins}m)"
+        echo "  will restore -> gray=${PREV_GRAY} invert=${PREV_INVERT} brightness=${PREV_BRIGHTNESS} dock_autohide=${PREV_DOCK_AUTOHIDE}"
+    else
+        echo "E-Ink Mode: off"
+    fi
+    echo "  now          -> $("$CTL" state | tr '\n' ' ')"
+}
+
+case "${1:-toggle}" in
+    on)     cmd_on ;;
+    off)    cmd_off ;;
+    toggle) if is_active; then cmd_off; else cmd_on; fi ;;
+    status) cmd_status ;;
+    *) echo "usage: eink [on|off|toggle|status]" >&2; exit 1 ;;
+esac
