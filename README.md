@@ -117,6 +117,13 @@ Also not built: global hotkey, Do Not Disturb (macOS 15 no longer exposes prior
 Focus state without Full Disk Access), app blocking, scheduling, multi-monitor
 config, palette quantization, dithering, Windows.
 
+## Background
+
+The original product spec is in [docs/PRD.md](docs/PRD.md) — product vision,
+prioritised requirements and the prototype milestones this repo is step one of.
+Worth reading §27 and §29: the open question was never whether this could be
+built, but whether monochrome-on-demand actually changes how you work.
+
 ## License
 
 MIT
