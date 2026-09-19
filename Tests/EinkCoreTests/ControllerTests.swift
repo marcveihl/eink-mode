@@ -137,4 +137,21 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(system.writes, 0)
     }
 
+    func testRestoreStillWorksWhenConfigurationIsCorrupt() throws {
+        let original = system.values
+        try controller.setMode(true)
+        try Data("broken".utf8).write(to: directory.appendingPathComponent("config.json"))
+        try controller.setMode(false)
+        XCTAssertEqual(system.values, original)
+        let state = try Store(directory: directory).read("state.json", default: RuntimeState())
+        XCTAssertNil(state.session)
+    }
+    func testAtomicEditsPreserveUnrelatedChanges() throws {
+        try controller.edit { $0.hideDock = false }
+        try controller.edit { $0.reduceMotion = true }
+        let config = try controller.status().configuration
+        XCTAssertFalse(config.hideDock)
+        XCTAssertTrue(config.reduceMotion)
+    }
+
 }

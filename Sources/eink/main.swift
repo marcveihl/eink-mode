@@ -37,7 +37,7 @@ do {
         print(String(decoding: try encoder.encode(controller.status().configuration), as: UTF8.self)); exit(0)
     case "set":
         guard args.count == 3 else { throw EinkError.message(usage) }
-        var config = try controller.status().configuration
+        try controller.edit { config in
         switch args[1] {
         case "grayscale": config.grayscale = try boolean(args[2])
         case "brightness":
@@ -52,11 +52,15 @@ do {
         case "schedule-off": config.schedule.off = try Schedule.parse(args[2])
         default: throw EinkError.message(usage)
         }
-        try controller.update(config)
+        }
     default: throw EinkError.message(usage)
     }
     let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    print(String(decoding: try encoder.encode(controller.status()), as: UTF8.self))
+    do { print(String(decoding: try encoder.encode(controller.status()), as: UTF8.self)) }
+    catch {
+        if command == "off" { print("Display restored. Status unavailable: \(error.localizedDescription)") }
+        else { throw error }
+    }
 } catch {
     FileHandle.standardError.write(Data("eink: \(error.localizedDescription)\n".utf8)); exit(1)
 }

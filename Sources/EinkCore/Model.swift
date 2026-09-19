@@ -27,9 +27,17 @@ public struct Schedule: Codable, Equatable {
     // Calendar matching preserves wall-clock schedules across DST; skipped times use the next valid time.
     public func boundary(at date: Date, calendar: Calendar) -> (date: Date, active: Bool) {
         func last(_ minutes: Int) -> Date {
-            calendar.nextDate(after: date.addingTimeInterval(0.001),
-                              matching: DateComponents(hour: minutes / 60, minute: minutes % 60, second: 0),
-                              matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .backward)!
+            let today = calendar.startOfDay(for: date)
+            // Resolve each civil day's occurrence forward, so a repeated DST hour
+            // has exactly one boundary (the first occurrence), even after fallback.
+            for offset in 0...2 {
+                let day = calendar.date(byAdding: .day, value: -offset, to: today)!
+                let candidate = calendar.nextDate(after: day.addingTimeInterval(-1),
+                    matching: DateComponents(hour: minutes / 60, minute: minutes % 60, second: 0),
+                    matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .forward)!
+                if candidate <= date { return candidate }
+            }
+            preconditionFailure("Calendar could not resolve a daily schedule boundary")
         }
         let start = last(on), end = last(off)
         return start > end ? (start, true) : (end, false)

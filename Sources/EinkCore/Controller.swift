@@ -4,7 +4,7 @@ public final class Controller {
     private let store: Store
     private let adapter: SystemAdapter
     private let calendar: Calendar
-    public init(store: Store, adapter: SystemAdapter, calendar: Calendar = .current) {
+    public init(store: Store, adapter: SystemAdapter, calendar: Calendar = .autoupdatingCurrent) {
         self.store = store; self.adapter = adapter; self.calendar = calendar
     }
     private func configuration() throws -> Configuration {
@@ -17,7 +17,18 @@ public final class Controller {
     }
     public func setMode(_ active: Bool, manual: Bool = true, now: Date = Date()) throws {
         try store.locked {
-            let config = try configuration(); var state = try state()
+            var state = try state()
+            // An intact restoration journal remains usable even if config is damaged.
+            if !active {
+                if manual {
+                    let config = try? configuration()
+                    state.manualUntilBoundary = config?.schedule.enabled == true ? config?.schedule.boundary(at: now, calendar: calendar).date : nil
+                    try save(state)
+                }
+                try restore(state: &state)
+                return
+            }
+            let config = try configuration()
             if manual {
                 state.manualUntilBoundary = config.schedule.enabled ? config.schedule.boundary(at: now, calendar: calendar).date : nil
                 try save(state)
@@ -27,23 +38,37 @@ public final class Controller {
     }
     public func toggle(now: Date = Date()) throws {
         try store.locked {
-            let config = try configuration(); var state = try state()
-            state.manualUntilBoundary = config.schedule.enabled ? config.schedule.boundary(at: now, calendar: calendar).date : nil
-            try save(state)
-            try transition(state.session == nil, config: config, state: &state, now: now)
+            var state = try state()
+            if state.session != nil {
+                let config = try? configuration()
+                state.manualUntilBoundary = config?.schedule.enabled == true ? config?.schedule.boundary(at: now, calendar: calendar).date : nil
+                try save(state); try restore(state: &state)
+            } else {
+                let config = try configuration()
+                state.manualUntilBoundary = config.schedule.enabled ? config.schedule.boundary(at: now, calendar: calendar).date : nil
+                try save(state); try transition(true, config: config, state: &state, now: now)
+            }
         }
     }
     public func update(_ config: Configuration, now: Date = Date()) throws {
-        try config.validate()
+        try store.locked { try updateLocked(config, now: now) }
+    }
+    public func edit(now: Date = Date(), _ change: (inout Configuration) throws -> Void) throws {
         try store.locked {
-            let previous = try configuration(); var state = try state()
-            try store.write(config, name: "config.json")
-            if previous.schedule != config.schedule {
-                state.lastBoundary = nil; state.manualUntilBoundary = nil; try save(state)
-            }
-            if state.session != nil { try apply(config, state: &state) }
-            if previous.schedule != config.schedule { try tick(config, state: &state, now: now) }
+            var config = try configuration()
+            try change(&config)
+            try updateLocked(config, now: now)
         }
+    }
+    private func updateLocked(_ config: Configuration, now: Date) throws {
+        try config.validate()
+        let previous = try configuration(); var state = try state()
+        try store.write(config, name: "config.json")
+        if previous.schedule != config.schedule {
+            state.lastBoundary = nil; state.manualUntilBoundary = nil; try save(state)
+        }
+        if state.session != nil { try apply(config, state: &state) }
+        if previous.schedule != config.schedule { try tick(config, state: &state, now: now) }
     }
     public func tick(now: Date = Date()) throws {
         try store.locked { var state = try state(); try tick(configuration(), state: &state, now: now) }

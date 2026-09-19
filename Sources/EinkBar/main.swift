@@ -68,8 +68,7 @@ final class Model: ObservableObject {
     }
     func change(_ update: @escaping (inout Configuration) throws -> Void) {
         perform {
-            var config = try self.controller.status().configuration
-            try update(&config); try self.controller.update(config)
+            try self.controller.edit(update)
         }
     }
     func recover(resume: Bool) {
@@ -175,7 +174,7 @@ struct SettingsView: View {
                     Text(error).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
                     HStack {
                         Button("Dismiss") { model.error = nil }
-                        if model.status?.active == true { Button("Retry restore") { model.recover(resume: false) } }
+                        Button("Restore display") { model.recover(resume: false) }
                     }.font(.caption)
                 }
             }
@@ -219,6 +218,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var handler: EventHandlerRef?
     private var terminating = false
     private var qaWindow: NSWindow?
+    private var recoveryPresented = false
     private var pressTimer: Timer?
     private var handledPress = false
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -253,7 +253,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let interaction = self.model.clickToFlip ? "click to flip; long press or right-click for settings" : "click for settings"
             self.item.button?.toolTip = "E-Ink Mode\(active ? " is on" : "") — \(interaction)"
             if self.model.error != nil { self.showSettings() }
-            if self.model.needsRecovery { self.showSettings() }
+            if self.model.needsRecovery && !self.recoveryPresented {
+                self.recoveryPresented = true; self.showSettings()
+            }
         }
         model.load()
         registerHotkey()

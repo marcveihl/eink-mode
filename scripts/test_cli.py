@@ -41,6 +41,15 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     status = run("status")
     assert "session" not in status["state"]
     assert status["system"]["values"] == original
+    # Concurrent edits to unrelated fields must both survive read/modify/write.
+    for _ in range(10):
+        run("set", "dock", "on")
+        run("set", "motion", "off")
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [pool.submit(run, "set", "dock", "off"), pool.submit(run, "set", "motion", "on")]
+            for future in futures: future.result()
+        edited = run("config")
+        assert edited["hideDock"] is False and edited["reduceMotion"] is True
     # A resumed process restores the durable journal left by a previous process.
     run("on")
     run("resume")
@@ -48,4 +57,4 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     assert run("off")["system"]["values"] == original
     pathlib.Path(directory, "state.json").write_text("corrupt")
     assert "Cannot read state.json" in run("on", good=False)
-print("CLI integration passed: settings, validation, restart recovery, 48 concurrent commands, restoration")
+print("CLI integration passed: settings, validation, restart recovery, concurrent mode commands and configuration edits, restoration")
