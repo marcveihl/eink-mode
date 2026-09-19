@@ -2,7 +2,7 @@ import SwiftUI
 import EinkCore
 import EinkMac
 
-enum SettingsTab: String { case appearance, schedule, general }
+enum SettingsTab: String { case appearance, focus, schedule, general }
 final class SettingsNavigation: ObservableObject { @Published var tab: SettingsTab = .general }
 
 struct SettingsView: View {
@@ -13,13 +13,15 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             Picker("Section", selection: $navigation.tab) {
                 Text("Appearance").tag(SettingsTab.appearance)
+                Text("Focus").tag(SettingsTab.focus)
                 Text("Schedule").tag(SettingsTab.schedule)
                 Text("General").tag(SettingsTab.general)
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 320).padding(.top, 16)
+            .pickerStyle(.segmented).labelsHidden().frame(width: 400).padding(.top, 16)
             Group {
                 switch navigation.tab {
                 case .appearance: AppearanceSettings(model: model)
+                case .focus: FocusSettingsView(model: model, showStats: actions.showStats)
                 case .schedule: ScheduleSettings(model: model)
                 case .general: GeneralSettings(model: model, actions: actions)
                 }
@@ -37,6 +39,7 @@ struct SettingsActions {
     var installUpdate: () -> Void
     var showWelcome: () -> Void
     var setShortcut: (String) -> Void
+    var showStats: () -> Void = {}
 }
 
 /// A caption under a control.

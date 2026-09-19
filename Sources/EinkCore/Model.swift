@@ -52,12 +52,26 @@ public struct Configuration: Codable, Equatable {
     public var reduceMotion = false
     public var reduceTransparency = false
     public var schedule = Schedule()
+    public var focus = FocusSettings()
     public init() {}
+    /// Missing keys take defaults, so files from older versions keep loading.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = Configuration()
+        grayscale = try c.decodeIfPresent(Bool.self, forKey: .grayscale) ?? d.grayscale
+        brightness = try c.decodeIfPresent(Double.self, forKey: .brightness)
+        hideDock = try c.decodeIfPresent(Bool.self, forKey: .hideDock) ?? d.hideDock
+        reduceMotion = try c.decodeIfPresent(Bool.self, forKey: .reduceMotion) ?? d.reduceMotion
+        reduceTransparency = try c.decodeIfPresent(Bool.self, forKey: .reduceTransparency) ?? d.reduceTransparency
+        schedule = try c.decodeIfPresent(Schedule.self, forKey: .schedule) ?? d.schedule
+        focus = try c.decodeIfPresent(FocusSettings.self, forKey: .focus) ?? d.focus
+    }
     public func validate() throws {
         if let brightness, !brightness.isFinite || !(0.05...1).contains(brightness) {
             throw EinkError.message("Brightness must be 5–100%, or unchanged.")
         }
         try schedule.validate()
+        try focus.validate()
     }
 }
 
@@ -90,6 +104,8 @@ public struct RuntimeState: Codable {
     public var lastBoundary: Date?
     /// While set and in the future, grayscale is lifted without changing the saved profile.
     public var colorUntil: Date?
+    /// A running Pomodoro round, if any.
+    public var focus: FocusSession?
     public init() {}
 }
 
@@ -98,8 +114,9 @@ public struct Status: Codable {
     public var state: RuntimeState
     public var system: SystemSnapshot
     public var active: Bool { state.session != nil }
+    public var focusing: Bool { active && state.focus != nil }
     public func temporaryColorRemaining(now: Date = Date()) -> TimeInterval? {
-        guard active, let until = state.colorUntil, until > now else { return nil }
+        guard active, state.focus == nil, let until = state.colorUntil, until > now else { return nil }
         return until.timeIntervalSince(now)
     }
 }

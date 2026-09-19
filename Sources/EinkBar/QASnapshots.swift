@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import EinkCore
+import EinkMac
 
 /// Simulated-mode only: renders the real windows to PNG for docs and visual QA, then exits.
 enum QASnapshots {
@@ -20,6 +21,15 @@ enum QASnapshots {
                 try? controller.edit { $0.schedule = .evening; $0.schedule.enabled = true }
                 navigation.tab = .schedule
             }, { AnyView(SettingsView(model: model, navigation: navigation, actions: actions)) }),
+            ("settings-focus", {
+                seedHistory(controller: controller)
+                model.stats = try? controller.focusStats()
+                navigation.tab = .focus
+            }, { AnyView(SettingsView(model: model, navigation: navigation, actions: actions)) }),
+            ("focus-stats", {
+                seedHistory(controller: controller)
+                model.stats = try? controller.focusStats()
+            }, { AnyView(FocusStatsView(model: model, start: {})) }),
             ("settings-general", {
                 model.clickToFlip = true; model.update = .upToDate
                 model.hotkeyMessage = "⌘⇧E switches E-Ink Mode from any app. If nothing happens, another app may be intercepting it — pick another."
@@ -38,7 +48,7 @@ enum QASnapshots {
             let window = NSWindow(contentRect: .zero, styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             window.appearance = NSAppearance(named: .aqua)
             window.isReleasedWhenClosed = false
-            window.title = name == "welcome" ? "Welcome to E-Ink Mode" : "E-Ink Mode Settings"
+            window.title = ["welcome": "Welcome to E-Ink Mode", "focus-stats": "Focus Stats"][name] ?? "E-Ink Mode Settings"
             window.contentViewController = NSHostingController(rootView: view())
             window.setFrameOrigin(NSPoint(x: -4000, y: 0))
             NSApp.activate(ignoringOtherApps: true)
@@ -81,6 +91,15 @@ enum QASnapshots {
                 model.clickToFlip = true
             }),
             ("menu-color", { try? controller.startTemporaryColor(for: 272) }),
+            ("menu-focus", {
+                try? controller.endTemporaryColor(); try? controller.setMode(false)
+                try? controller.startFocus(sessions: 4, now: Date().addingTimeInterval(-6.5 * 60))
+            }),
+            ("menu-break", {
+                try? controller.stopFocus()
+                try? controller.startFocus(sessions: 4, now: Date().addingTimeInterval(-(25 + 25 + 5 + 0.5) * 60))
+                try? controller.tick()
+            }),
         ]
         let backdrop = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 480), styleMask: [.borderless], backing: .buffered, defer: false)
         backdrop.backgroundColor = QASnapshots.backdrop
@@ -89,10 +108,10 @@ enum QASnapshots {
         let inertTarget = NSObject() // menu item targets are weak; keep one alive while rendering
         for (name, prepare) in scenarios {
             prepare()
-            model.status = try? controller.status()
+            model.status = try? controller.status(); model.stats = try? controller.focusStats()
             let menu = NSMenu(); menu.autoenablesItems = false; menu.appearance = NSAppearance(named: .aqua)
-            var colorItem: NSMenuItem?
-            MenuBuilder.build(menu, model: model, target: inertTarget, colorItem: &colorItem)
+            var live = LiveMenuItems()
+            MenuBuilder.build(menu, model: model, target: inertTarget, live: &live)
             let timer = Timer(timeInterval: 0.8, repeats: false) { _ in
                 if let window = NSApp.windows.first(where: { $0.isVisible && $0 !== backdrop && $0.frame.width > 100 && String(describing: type(of: $0)).contains("Menu") }),
                    let screen = NSScreen.screens.first {
@@ -111,6 +130,21 @@ enum QASnapshots {
             menu.popUp(positioning: nil, at: origin, in: backdrop.contentView)
         }
         backdrop.orderOut(nil)
+    }
+
+    /// Three weeks of plausible study history: a 5-day streak, today 3 of 8.
+    private static func seedHistory(controller: Controller) {
+        var history = FocusHistory()
+        let calendar = Calendar.autoupdatingCurrent
+        let pattern = [4, 6, 0, 5, 8, 3, 0, 7, 6, 9, 0, 2, 5, 0, 6, 8, 4, 7, 5, 3]
+        for (offset, sessions) in pattern.enumerated() {
+            let date = calendar.date(byAdding: .day, value: -(pattern.count - offset), to: Date())!
+            var day = DayRecord(); day.completed = sessions; day.focusMinutes = sessions * 25; day.rounds = sessions / 4
+            if sessions > 0 { history.days[FocusHistory.key(date, calendar: calendar)] = day }
+        }
+        var today = DayRecord(); today.completed = 3; today.focusMinutes = 75 + 12; today.stopped = 1
+        history.days[FocusHistory.key(Date(), calendar: calendar)] = today
+        try? Store(directory: EinkEnvironment.directory).write(history, name: "focus-history.json")
     }
 
     static let backdrop = NSColor(calibratedWhite: 0.93, alpha: 1)

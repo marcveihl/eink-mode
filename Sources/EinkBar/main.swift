@@ -7,7 +7,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var item: NSStatusItem!
     private var model: AppModel!
     private let menu = NSMenu()
-    private var colorItem: NSMenuItem?
+    private var live = LiveMenuItems()
+    private var statsWindow: NSWindow?
+    private var lastFocus: FocusSession?
     private var menuTimer: Timer?
     private var pollTimer: Timer?
     private var secondTimer: Timer?
@@ -38,7 +40,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if let snapshotDirectory { return QASnapshots.run(model: model, navigation: navigation, into: snapshotDirectory) }
 
-        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.imagePosition = .imageLeading
         item.button?.target = self; item.button?.action = #selector(statusItemPressed)
         item.button?.sendAction(on: [.leftMouseDown, .leftMouseUp, .rightMouseUp])
         menu.delegate = self; menu.autoenablesItems = false
@@ -50,7 +53,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.refreshIcon()
             if self.model.clickToFlip && !wasFlipping { self.showHint("Click ◐ to switch E-Ink Mode.\nRight-click or hold for the menu.") }
             wasFlipping = self.model.clickToFlip
-            if !self.launchHandled, self.model.status != nil { self.launchHandled = true; self.handleLaunch() }
+            if !self.launchHandled, self.model.status != nil { self.launchHandled = true; self.lastFocus = self.model.focus; self.handleLaunch() }
+            else { self.announceFocusChanges() }
         }
         model.onUserError = { [weak self] message in self?.presentError(message) }
         model.load()
@@ -58,10 +62,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         applyShortcut(UserDefaults.standard.string(forKey: "shortcut") ?? Shortcut.presets[0].id)
 
         pollTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.model.poll() }
-        // Ends temporary color on time and keeps the icon's countdown tooltip fresh.
+        // Ends temporary color and focus phases on time and keeps countdowns fresh.
         secondTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self, let until = self.model.status?.state.colorUntil else { return }
-            if until <= Date() { self.model.poll() } else { self.refreshIcon() }
+            guard let self, let state = self.model.status?.state else { return }
+            guard let due = state.focus?.phaseEnds ?? state.colorUntil else { return }
+            if due <= Date() { self.model.poll() } else { self.refreshIcon() }
         }
         let workspace = NSWorkspace.shared.notificationCenter
         workspace.addObserver(self, selector: #selector(wake), name: NSWorkspace.didWakeNotification, object: nil)
@@ -91,11 +96,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func refreshIcon() {
         guard let button = item?.button else { return }
         let symbol: String, label: String
+        var countdownText = ""
         if model.error != nil || model.needsRecovery { symbol = "exclamationmark.circle"; label = "E-Ink Mode needs attention" }
+        else if let focus = model.focus {
+            symbol = focus.phase == .focus ? "timer" : "cup.and.saucer"
+            label = MenuBuilder.focusLine(focus)
+            if model.menuBarCountdown { countdownText = countdown(focus.remaining(now: Date())) }
+        }
         else if let left = model.colorRemaining { symbol = "circle.dotted"; label = "E-Ink Mode — color for \(countdown(left))" }
         else if model.active { symbol = "circle.fill"; label = "E-Ink Mode is on" }
         else { symbol = "circle.lefthalf.filled"; label = "E-Ink Mode is off" }
         button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+        button.title = countdownText
+        button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         button.toolTip = label + (model.clickToFlip ? " — click to switch, right-click for menu" : "")
     }
 
@@ -169,11 +182,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Menu
 
-    func menuNeedsUpdate(_ menu: NSMenu) { MenuBuilder.build(menu, model: model, target: self, colorItem: &colorItem) }
+    func menuNeedsUpdate(_ menu: NSMenu) { MenuBuilder.build(menu, model: model, target: self, live: &live) }
     func menuWillOpen(_ menu: NSMenu) {
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self, let colorItem = self.colorItem, let left = self.model.colorRemaining else { return }
-            colorItem.title = "Resume grayscale · \(countdown(left)) remaining"
+            guard let self else { return }
+            if let item = self.live.color, let left = self.model.colorRemaining { item.title = "Resume grayscale · \(countdown(left)) remaining" }
+            if let item = self.live.focus, let focus = self.model.focus { item.title = MenuBuilder.focusLine(focus) }
         }
         RunLoop.main.add(timer, forMode: .common); menuTimer = timer
     }
@@ -182,6 +196,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func turnOn() { model.setActive(true) }
     @objc func turnOff() { model.setActive(false) }
     @objc func startColor() { model.startColor() }
+    @objc func startFocus() { model.startFocus() }
+    @objc func stopFocus() { model.stopFocus() }
+    @objc func skipBreak() { model.skipBreak() }
+    @objc func showStats() {
+        if statsWindow == nil {
+            let view = FocusStatsView(model: model, start: { [weak self] in self?.model.startFocus() })
+            let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+            window.title = "Focus Stats"; window.styleMask = [.titled, .closable]
+            window.isReleasedWhenClosed = false; window.center()
+            statsWindow = window
+        }
+        model.poll()
+        statsWindow?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// Plays a cue and shows a short hint when a focus round changes phase.
+    private func announceFocusChanges() {
+        let previous = lastFocus, current = model.focus
+        lastFocus = current
+        guard previous?.phase != current?.phase || previous?.round != current?.round else { return }
+        let message: String, sound: String
+        switch (previous, current) {
+        case (nil, let now?): message = "Focus \(now.round) of \(now.rounds) — \(Int(now.focusSeconds / 60)) minutes in grayscale."; sound = "Tink"
+        case (_, let now?) where now.phase == .rest:
+            message = "Break time — color is on for \(Int(now.breakSeconds / 60)) minutes."; sound = "Glass"
+        case (_, let now?): message = "Back to focus · session \(now.round) of \(now.rounds)."; sound = "Tink"
+        case (let was?, nil):
+            guard let stats = model.stats else { return }
+            let finished = was.phase == .focus && was.remaining(now: Date()) <= 1 && was.round == was.rounds
+            message = finished ? "Round complete! \(stats.today.completed) sessions today. \(stats.message)" : "Focus session stopped."
+            sound = finished ? "Hero" : "Pop"
+        default: return
+        }
+        if model.focusSound { NSSound(named: NSSound.Name(sound))?.play() }
+        showHint(message)
+    }
     @objc func endColor() { model.endColor() }
     @objc func restoreDisplay() { model.restoreDisplay() }
     @objc func resumeSession() { model.recover(resume: true) }
@@ -203,7 +253,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let actions = SettingsActions(checkForUpdates: { [weak self] in self?.checkForUpdates(interactive: true) },
                                           installUpdate: { [weak self] in self?.confirmUpdate() },
                                           showWelcome: { [weak self] in self?.showWelcome() },
-                                          setShortcut: { [weak self] in self?.applyShortcut($0) })
+                                          setShortcut: { [weak self] in self?.applyShortcut($0) },
+                                          showStats: { [weak self] in self?.showStats() })
             let hosting = NSHostingController(rootView: SettingsView(model: model, navigation: navigation, actions: actions))
             hosting.sizingOptions = [.preferredContentSize] // resize as tabs change height
             let window = NSWindow(contentViewController: hosting)
