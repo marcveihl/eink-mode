@@ -20,6 +20,9 @@ final class ControllerTests: XCTestCase {
     override func setUp() {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         system = FakeSystem(); controller = Controller(store: Store(directory: directory), adapter: system)
+        // Opt in to the full profile these tests exercise; defaults are grayscale-only.
+        var config = Configuration(); config.brightness = 0.35; config.hideDock = true
+        try! controller.update(config)
     }
     override func tearDown() { try? FileManager.default.removeItem(at: directory) }
     func testRestoresExactPerDisplayAndPreexistingAccessibilityState() throws {
@@ -77,7 +80,8 @@ final class ControllerTests: XCTestCase {
         let original = system.values
         var config = Configuration(); config.brightness = .nan
         XCTAssertThrowsError(try controller.update(config))
-        XCTAssertEqual(try controller.status().configuration, Configuration())
+        var expected = Configuration(); expected.brightness = 0.35; expected.hideDock = true
+        XCTAssertEqual(try controller.status().configuration, expected)
         XCTAssertEqual(system.values, original)
     }
     func testCorruptStateRefusesMutation() throws {
@@ -135,6 +139,23 @@ final class ControllerTests: XCTestCase {
         XCTAssertThrowsError(try controller.setMode(true))
         XCTAssertEqual(system.values, original)
         XCTAssertEqual(system.writes, 0)
+    }
+
+    func testRestoreStillWorksWhenConfigurationIsCorrupt() throws {
+        let original = system.values
+        try controller.setMode(true)
+        try Data("broken".utf8).write(to: directory.appendingPathComponent("config.json"))
+        try controller.setMode(false)
+        XCTAssertEqual(system.values, original)
+        let state = try Store(directory: directory).read("state.json", default: RuntimeState())
+        XCTAssertNil(state.session)
+    }
+    func testAtomicEditsPreserveUnrelatedChanges() throws {
+        try controller.edit { $0.hideDock = false }
+        try controller.edit { $0.reduceMotion = true }
+        let config = try controller.status().configuration
+        XCTAssertFalse(config.hideDock)
+        XCTAssertTrue(config.reduceMotion)
     }
 
 }

@@ -80,4 +80,35 @@ final class ScheduleTests: XCTestCase {
         XCTAssertEqual(try Schedule.parse("21:00"), 1260)
         for input in ["24:00", "21:60", "9pm", "-1:00", "", "21:00:00"] { XCTAssertThrowsError(try Schedule.parse(input)) }
     }
+    func testRepeatedDSTHourHasOnlyOneDailyBoundary() throws {
+        var config = Configuration(); config.schedule.enabled = true; config.schedule.on = 90
+        try controller.update(config, now: date("2026-11-01T01:35:00-05:00"))
+        XCTAssertTrue(try controller.status().active)
+        try controller.setMode(false, now: date("2026-11-01T01:40:00-05:00"))
+        try controller.tick(now: date("2026-11-01T01:45:00-06:00"))
+        XCTAssertFalse(try controller.status().active)
+        try controller.tick(now: date("2026-11-02T01:30:00-06:00"))
+        XCTAssertTrue(try controller.status().active)
+    }
+    func testSkippedDSTTimeRunsAtNextValidWallTime() throws {
+        var config = Configuration(); config.schedule.enabled = true; config.schedule.on = 150
+        try controller.update(config, now: date("2026-03-08T01:59:00-06:00"))
+        XCTAssertFalse(try controller.status().active)
+        try controller.tick(now: date("2026-03-08T03:00:00-05:00"))
+        XCTAssertTrue(try controller.status().active)
+    }
+
+    func testQuitPausesScheduleButLogoutCatchesUpOnNextLaunch() throws {
+        try enable(at: date("2026-09-16T21:30:00-05:00"))
+        XCTAssertTrue(try controller.status().active)
+        try controller.shutdown(resumeScheduleOnLaunch: false, now: date("2026-09-16T22:00:00-05:00"))
+        try controller.tick(now: date("2026-09-16T22:05:00-05:00"))
+        XCTAssertFalse(try controller.status().active, "a deliberate quit holds until the next boundary")
+        try controller.setMode(true, now: date("2026-09-16T22:10:00-05:00"))
+        try controller.shutdown(resumeScheduleOnLaunch: true, now: date("2026-09-16T22:15:00-05:00"))
+        XCTAssertEqual(system.values["grayscale"], .flag(true), "FakeSystem starts grayscale; restored exactly")
+        XCTAssertFalse(try controller.status().active)
+        try controller.tick(now: date("2026-09-16T22:20:00-05:00"))
+        XCTAssertTrue(try controller.status().active, "after logout the schedule resumes on launch")
+    }
 }

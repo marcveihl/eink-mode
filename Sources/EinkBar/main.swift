@@ -1,303 +1,126 @@
 import AppKit
 import SwiftUI
-import Carbon
-import ServiceManagement
 import EinkCore
 import EinkMac
 
-final class Model: ObservableObject {
-    @Published var status: Status?
-    @Published var error: String?
-    @Published var busy = false
-    @Published var needsRecovery = false
-    @Published var loginEnabled = false
-    @Published var hotkeyMessage = "⌘⇧E toggles E-Ink Mode"
-    @Published var notice: String?
-    @Published var clickToFlip = UserDefaults.standard.bool(forKey: "clickToFlip") {
-        didSet {
-            UserDefaults.standard.set(clickToFlip, forKey: "clickToFlip")
-            changed?()
-        }
-    }
-    let controller: Controller
-    private let work = DispatchQueue(label: "local.eink.operations")
-    var changed: (() -> Void)?
-    init(controller: Controller) { self.controller = controller }
-    func load() {
-        perform(checkLegacy: false) {
-            let status = try self.controller.status()
-            DispatchQueue.main.async { self.needsRecovery = status.active }
-        }
-        refreshLogin()
-    }
-    func perform(checkLegacy: Bool = true, _ operation: @escaping () throws -> Void = {}) {
-        guard !busy else { return }
-        busy = true
-        work.async {
-            var failure: String?
-            do { if checkLegacy { try EinkEnvironment.checkLegacy() }; try operation() }
-            catch { failure = error.localizedDescription }
-            let result = Result { try self.controller.status() }
-            DispatchQueue.main.async {
-                self.busy = false
-                if let failure { self.error = failure }
-                switch result {
-                case .success(let status): self.status = status
-                case .failure(let error): self.error = error.localizedDescription
-                }
-                self.changed?()
-            }
-        }
-    }
-    func poll() {
-        perform {
-            if !self.needsRecovery { try self.controller.tick() }
-        }
-        refreshLogin()
-    }
-    func toggle() {
-        guard !needsRecovery else { return }
-        perform {
-            try self.controller.toggle()
-            let active = try self.controller.status().active
-            DispatchQueue.main.async {
-                self.notice = active ? "E-Ink Mode enabled" : "Display restored"
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { self.notice = nil }
-            }
-        }
-    }
-    func change(_ update: @escaping (inout Configuration) throws -> Void) {
-        perform {
-            var config = try self.controller.status().configuration
-            try update(&config); try self.controller.update(config)
-        }
-    }
-    func recover(resume: Bool) {
-        perform {
-            if resume { try self.controller.resume() } else { try self.controller.setMode(false) }
-            DispatchQueue.main.async { self.needsRecovery = false; self.error = nil }
-        }
-    }
-    func refreshLogin() { loginEnabled = SMAppService.mainApp.status == .enabled }
-    func setLogin(_ enabled: Bool) {
-        do {
-            if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
-            refreshLogin()
-            if SMAppService.mainApp.status == .requiresApproval {
-                error = "Approve E-Ink Mode in System Settings → General → Login Items."
-                SMAppService.openSystemSettingsLoginItems()
-            }
-        } catch { self.error = error.localizedDescription; refreshLogin() }
-    }
-}
-
-struct SettingsView: View {
-    @ObservedObject var model: Model
-    let quit: () -> Void
-    @State private var onTime = "21:00"
-    @State private var offTime = "07:00"
-    @State private var brightness = 35.0
-    @State private var editingBrightness = false
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Image(systemName: "circle.lefthalf.filled").font(.title2)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("E-Ink Mode").font(.headline)
-                    Text(model.notice ?? (model.status?.active == true ? "A quieter workspace" : "Ready when you are")).font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if model.busy { ProgressView().controlSize(.small) }
-            }
-            if model.needsRecovery {
-                Text("An unfinished E-Ink session was found. Restore your original display or resume that session.").font(.callout)
-                HStack {
-                    Button("Restore display") { model.recover(resume: false) }.buttonStyle(.borderedProminent)
-                    Button("Resume") { model.recover(resume: true) }
-                }.disabled(model.busy)
-            } else {
-                Button(action: model.toggle) {
-                    HStack { Text(model.status?.active == true ? "Restore normal display" : "Enable E-Ink Mode"); Spacer(); Text("⌘⇧E").opacity(0.7) }
-                }.buttonStyle(.borderedProminent).controlSize(.large).disabled(model.busy || model.status == nil)
-            }
-            if let status = model.status {
-                Divider()
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Grayscale", isOn: binding(\.grayscale)).disabled(status.system.values["grayscale"] == nil)
-                    if let live = status.system.values["grayscale"], case .flag(let enabled) = live {
-                        Text("Display is currently \(enabled ? "grayscale" : "in color")").font(.caption).foregroundStyle(.secondary)
-                    }
-                    Toggle("Adjust brightness", isOn: Binding(get: { status.configuration.brightness != nil }, set: { enabled in model.change { $0.brightness = enabled ? brightness / 100 : nil } }))
-                        .disabled(!hasBrightness(status))
-                    if status.configuration.brightness != nil {
-                        HStack {
-                            Slider(value: $brightness, in: 5...100, step: 1, onEditingChanged: { editing in
-                                editingBrightness = editing
-                                if !editing { model.change { $0.brightness = brightness / 100 } }
-                            }).accessibilityLabel("E-Ink brightness")
-                            Text("\(Int(brightness))%").monospacedDigit().frame(width: 42)
-                        }.disabled(!hasBrightness(status))
-                    }
-                    Toggle("Hide Dock", isOn: binding(\.hideDock))
-                    Toggle("Reduce motion", isOn: binding(\.reduceMotion)).disabled(status.system.values["motion"] == nil)
-                    Toggle("Reduce transparency", isOn: binding(\.reduceTransparency)).disabled(status.system.values["transparency"] == nil)
-                }.disabled(model.busy || model.needsRecovery)
-                Divider()
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Nightly schedule", isOn: Binding(get: { status.configuration.schedule.enabled }, set: { enabled in model.change { $0.schedule.enabled = enabled } }))
-                    HStack {
-                        Text("On").foregroundStyle(.secondary)
-                        TextField("21:00", text: $onTime).frame(width: 57).accessibilityLabel("Schedule on time").onSubmit(saveTimes)
-                        Text("Off").foregroundStyle(.secondary)
-                        TextField("07:00", text: $offTime).frame(width: 57).accessibilityLabel("Schedule off time").onSubmit(saveTimes)
-                        Button("Apply", action: saveTimes)
-                    }.textFieldStyle(.roundedBorder)
-                    Text(scheduleDescription(status)).font(.caption).foregroundStyle(.secondary)
-                }.disabled(model.busy || model.needsRecovery)
-                Divider()
-                Toggle("Click to flip", isOn: $model.clickToFlip)
-                Text("Click the menu bar icon to toggle E-Ink Mode. Long press or right-click for settings.").font(.caption).foregroundStyle(.secondary)
-                Toggle("Launch at login", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))
-                Text(model.hotkeyMessage).font(.caption).foregroundStyle(.secondary)
-                if !status.system.warnings.isEmpty {
-                    DisclosureGroup("System availability") {
-                        VStack(alignment: .leading, spacing: 6) {
-                            ForEach(status.system.warnings, id: \.self) { Text($0).font(.caption).fixedSize(horizontal: false, vertical: true) }
-                            Button("Accessibility display settings") {
-                                NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.universalaccess?Seeing_Display")!)
-                            }.font(.caption)
-                        }.padding(.top, 5)
-                    }.font(.caption)
-                }
-            }
-            if let error = model.error {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text(error).font(.caption).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true)
-                    HStack {
-                        Button("Dismiss") { model.error = nil }
-                        if model.status?.active == true { Button("Retry restore") { model.recover(resume: false) } }
-                    }.font(.caption)
-                }
-            }
-            HStack {
-                Text("Settings save automatically").font(.caption2).foregroundStyle(.secondary)
-                Spacer()
-                Button("Quit", action: quit).buttonStyle(.plain).font(.caption)
-            }
-        }
-        .padding(20).frame(width: 350)
-        .onAppear { sync() }
-        .onChange(of: model.status?.configuration) { _ in sync() }
-    }
-    private func binding(_ key: WritableKeyPath<Configuration, Bool>) -> Binding<Bool> {
-        Binding(get: { model.status?.configuration[keyPath: key] ?? false }, set: { value in model.change { $0[keyPath: key] = value } })
-    }
-    private func sync() {
-        guard let config = model.status?.configuration else { return }
-        onTime = Schedule.format(config.schedule.on); offTime = Schedule.format(config.schedule.off)
-        if !editingBrightness { brightness = (config.brightness ?? 0.35) * 100 }
-    }
-    private func hasBrightness(_ status: Status) -> Bool { status.system.values.keys.contains { $0.hasPrefix("brightness:") } }
-    private func saveTimes() {
-        do {
-            let on = try Schedule.parse(onTime), off = try Schedule.parse(offTime)
-            model.change { $0.schedule.on = on; $0.schedule.off = off }
-        } catch { model.error = error.localizedDescription }
-    }
-    private func scheduleDescription(_ status: Status) -> String {
-        if status.state.manualUntilBoundary != nil && status.configuration.schedule.enabled { return "Manual override until the next scheduled change." }
-        return status.configuration.schedule.enabled ? "Every day, local time. Catches up on wake while the app is running." : "Off by default. Enable to follow these times daily."
-    }
-}
-
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var item: NSStatusItem!
-    private var popover = NSPopover()
-    private var model: Model!
-    private var timer: Timer?
-    private var hotkey: EventHotKeyRef?
-    private var handler: EventHandlerRef?
+    private var model: AppModel!
+    private let menu = NSMenu()
+    private var colorItem: NSMenuItem?
+    private var menuTimer: Timer?
+    private var pollTimer: Timer?
+    private var secondTimer: Timer?
+    private var hotkeys: HotkeyCenter?
     private var terminating = false
-    private var qaWindow: NSWindow?
+    private var poweringOff = false
+    private var launchHandled = false
+    private var settingsWindow: NSWindow?
+    private var welcomeWindow: NSWindow?
+    private let navigation = SettingsNavigation()
     private var pressTimer: Timer?
     private var handledPress = false
+    private var hint: NSPopover?
+    private var signalSources: [DispatchSourceSignal] = []
+    private var simulated: Bool { ProcessInfo.processInfo.environment["EINK_SIMULATED"] == "1" }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Finder launches are single-instance; protect command-line launches as well.
-        if let id = Bundle.main.bundleIdentifier,
-           NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: { $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }) {
-            NSApp.terminate(nil); return
+        let snapshotDirectory = argument("--qa-snapshots")
+        if snapshotDirectory == nil {
+            let qaDuplicate = simulated && ProcessInfo.processInfo.environment["EINK_QA_ALLOW_DUPLICATE"] == "1"
+            guard qaDuplicate || Installation.resolveRunningCopies() else { NSApp.terminate(nil); return }
+            if !simulated, !Installation.offerMoveToApplications() { terminating = true; NSApp.terminate(nil); return }
         }
-        do { model = Model(controller: try EinkEnvironment.makeController()) }
-        catch { let alert = NSAlert(); alert.messageText = "E-Ink Mode could not start"; alert.informativeText = error.localizedDescription; alert.runModal(); NSApp.terminate(nil); return }
+        do { model = AppModel(controller: try EinkEnvironment.makeController()) }
+        catch {
+            let alert = NSAlert(); alert.messageText = "E-Ink Mode could not start"; alert.informativeText = error.localizedDescription
+            alert.runModal(); NSApp.terminate(nil); return
+        }
+        if let snapshotDirectory { return QASnapshots.run(model: model, navigation: navigation, into: snapshotDirectory) }
+
         item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        item.button?.image = NSImage(systemSymbolName: "circle.lefthalf.filled", accessibilityDescription: "E-Ink Mode")
         item.button?.target = self; item.button?.action = #selector(statusItemPressed)
         item.button?.sendAction(on: [.leftMouseDown, .leftMouseUp, .rightMouseUp])
-        popover.behavior = .transient
-        let settings = SettingsView(model: model, quit: { NSApp.terminate(nil) })
-        let hosting = NSHostingController(rootView: settings)
-        hosting.sizingOptions = [.preferredContentSize]
-        popover.contentViewController = hosting
-        popover.contentSize = NSSize(width: 350, height: 620)
-        if CommandLine.arguments.contains("--qa-window"), ProcessInfo.processInfo.environment["EINK_SIMULATED"] == "1" {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 350, height: 680), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            window.title = "E-Ink Mode — Simulated QA"
-            window.contentViewController = NSHostingController(rootView: settings)
-            window.center(); window.makeKeyAndOrderFront(nil); qaWindow = window
-            NSApp.activate(ignoringOtherApps: true)
-        }
+        menu.delegate = self; menu.autoenablesItems = false
+        refreshIcon()
+
+        var wasFlipping = model.clickToFlip
         model.changed = { [weak self] in
             guard let self else { return }
-            let active = self.model.status?.active == true
-            self.item.button?.image = NSImage(systemSymbolName: active ? "circle.fill" : "circle.lefthalf.filled", accessibilityDescription: active ? "E-Ink Mode on" : "E-Ink Mode off")
-            let interaction = self.model.clickToFlip ? "click to flip; long press or right-click for settings" : "click for settings"
-            self.item.button?.toolTip = "E-Ink Mode\(active ? " is on" : "") — \(interaction)"
-            if self.model.error != nil { self.showSettings() }
-            if self.model.needsRecovery { self.showSettings() }
+            self.refreshIcon()
+            if self.model.clickToFlip && !wasFlipping { self.showHint("Click ◐ to switch E-Ink Mode.\nRight-click or hold for the menu.") }
+            wasFlipping = self.model.clickToFlip
+            if !self.launchHandled, self.model.status != nil { self.launchHandled = true; self.handleLaunch() }
         }
+        model.onUserError = { [weak self] message in self?.presentError(message) }
         model.load()
-        registerHotkey()
-        timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.model.poll() }
-        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(wake), name: NSWorkspace.didWakeNotification, object: nil)
-        if CommandLine.arguments.contains("--show") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.showSettings() } }
+        hotkeys = HotkeyCenter { [weak self] in self?.model.toggle() }
+        applyShortcut(UserDefaults.standard.string(forKey: "shortcut") ?? Shortcut.presets[0].id)
+
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.model.poll() }
+        // Ends temporary color on time and keeps the icon's countdown tooltip fresh.
+        secondTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self, let until = self.model.status?.state.colorUntil else { return }
+            if until <= Date() { self.model.poll() } else { self.refreshIcon() }
+        }
+        let workspace = NSWorkspace.shared.notificationCenter
+        workspace.addObserver(self, selector: #selector(wake), name: NSWorkspace.didWakeNotification, object: nil)
+        workspace.addObserver(self, selector: #selector(willPowerOff), name: NSWorkspace.willPowerOffNotification, object: nil)
+        DistributedNotificationCenter.default().addObserver(self, selector: #selector(revealFromAnotherLaunch),
+                                                            name: Installation.showMenuNotification, object: nil)
+        installSignalHandlers()
+        scheduleUpdateChecks()
     }
+
+    private func argument(_ name: String) -> String? {
+        guard simulated, let index = CommandLine.arguments.firstIndex(of: name), index + 1 < CommandLine.arguments.count else { return nil }
+        return CommandLine.arguments[index + 1]
+    }
+
+    /// Runs once, after the first status read: recovery first, then welcome, then post-update activation.
+    private func handleLaunch() {
+        if model.needsRecovery { return presentRecovery() }
+        if !UserDefaults.standard.bool(forKey: "onboarded") { showWelcome() }
+        else if CommandLine.arguments.contains("--activate"), !model.active { model.setActive(true) }
+        if CommandLine.arguments.contains("--show-menu") { DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { self.showMenu() } }
+        if simulated, CommandLine.arguments.contains("--qa-verify-menu") { verifyMenuOpens() }
+    }
+
+    // MARK: Status item
+
+    private func refreshIcon() {
+        guard let button = item?.button else { return }
+        let symbol: String, label: String
+        if model.error != nil || model.needsRecovery { symbol = "exclamationmark.circle"; label = "E-Ink Mode needs attention" }
+        else if let left = model.colorRemaining { symbol = "circle.dotted"; label = "E-Ink Mode — color for \(countdown(left))" }
+        else if model.active { symbol = "circle.fill"; label = "E-Ink Mode is on" }
+        else { symbol = "circle.lefthalf.filled"; label = "E-Ink Mode is off" }
+        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+        button.toolTip = label + (model.clickToFlip ? " — click to switch, right-click for menu" : "")
+    }
+
     @objc private func statusItemPressed() {
-        guard let event = NSApp.currentEvent else { showSettings(); return }
+        guard let event = NSApp.currentEvent else { showMenu(); return }
         switch event.type {
         case .leftMouseDown:
-            pressTimer?.invalidate()
-            handledPress = false
-            if event.modifierFlags.contains(.control) {
-                handledPress = true
-                showSettings()
-                return
-            }
+            pressTimer?.invalidate(); handledPress = false
+            if event.modifierFlags.contains(.control) || !model.clickToFlip { handledPress = true; showMenu(); return }
             let timer = Timer(timeInterval: 0.5, repeats: false) { [weak self] _ in
                 guard let self else { return }
                 self.handledPress = true
-                if self.pointerIsOverButton { self.showSettings() }
+                if self.pointerIsOverButton { self.showMenu() }
             }
             pressTimer = timer
-            // Status buttons track the mouse in a separate run-loop mode.
-            RunLoop.main.add(timer, forMode: .common)
+            RunLoop.main.add(timer, forMode: .common) // status buttons track the mouse in a separate run-loop mode
         case .leftMouseUp:
-            pressTimer?.invalidate()
-            pressTimer = nil
+            pressTimer?.invalidate(); pressTimer = nil
             guard !handledPress, pointerIsOverButton else { return }
-            if event.modifierFlags.contains(.control) || !model.clickToFlip || model.needsRecovery || model.status == nil {
-                showSettings()
-            } else {
-                popover.performClose(nil)
-                model.toggle()
-            }
+            if model.needsRecovery || model.status == nil || model.error != nil { showMenu() } else { model.toggle() }
         case .rightMouseUp:
-            pressTimer?.invalidate()
-            pressTimer = nil
-            handledPress = true
-            showSettings()
+            pressTimer?.invalidate(); pressTimer = nil; handledPress = true
+            showMenu()
         default:
-            // Keyboard and accessibility activation retain access to settings.
-            showSettings()
+            showMenu() // keyboard and accessibility activation
         }
     }
     private var pointerIsOverButton: Bool {
@@ -305,35 +128,225 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let point = window.convertPoint(fromScreen: NSEvent.mouseLocation)
         return button.bounds.contains(button.convert(point, from: nil))
     }
-    @objc func showSettings() {
-        guard let button = item?.button else { return }
-        if !popover.isShown { popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY); NSApp.activate(ignoringOtherApps: true) }
+    @objc func showMenu() {
+        guard let item else { return }
+        hint?.close()
+        item.menu = menu
+        item.button?.performClick(nil)
+        item.menu = nil
     }
-    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { showSettings(); return true }
+    /// Simulated QA: opens the status menu through the real click path and reports whether it appeared.
+    private func verifyMenuOpens() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            let check = Timer(timeInterval: 0.8, repeats: false) { _ in
+                let titles = self.menu.items.map(\.title).filter { !$0.isEmpty }
+                let open = NSApp.windows.contains { $0.isVisible && String(describing: type(of: $0)).contains("Menu") }
+                print("qa-verify-menu open=\(open) items=\(titles)")
+                self.menu.cancelTracking()
+                DispatchQueue.main.async { self.terminating = true; NSApp.terminate(nil) }
+            }
+            RunLoop.main.add(check, forMode: .common)
+            self.showMenu()
+        }
+    }
+    @objc private func revealFromAnotherLaunch() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if self.welcomeWindow?.isVisible == true { self.welcomeWindow?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+            else { self.showHint("E-Ink Mode is already running — it lives here in the menu bar.") }
+        }
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool { revealFromAnotherLaunch(); return true }
+
+    private func showHint(_ text: String) {
+        guard let button = item?.button else { return }
+        hint?.close()
+        let popover = NSPopover(); popover.behavior = .transient
+        popover.contentViewController = NSHostingController(rootView: Text(text).font(.callout).multilineTextAlignment(.center).padding(12))
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        hint = popover
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak popover] in popover?.close() }
+    }
+
+    // MARK: Menu
+
+    func menuNeedsUpdate(_ menu: NSMenu) { MenuBuilder.build(menu, model: model, target: self, colorItem: &colorItem) }
+    func menuWillOpen(_ menu: NSMenu) {
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self, let colorItem = self.colorItem, let left = self.model.colorRemaining else { return }
+            colorItem.title = "Resume grayscale · \(countdown(left)) remaining"
+        }
+        RunLoop.main.add(timer, forMode: .common); menuTimer = timer
+    }
+    func menuDidClose(_ menu: NSMenu) { menuTimer?.invalidate(); menuTimer = nil }
+
+    @objc func turnOn() { model.setActive(true) }
+    @objc func turnOff() { model.setActive(false) }
+    @objc func startColor() { model.startColor() }
+    @objc func endColor() { model.endColor() }
+    @objc func restoreDisplay() { model.restoreDisplay() }
+    @objc func resumeSession() { model.recover(resume: true) }
+    @objc func showError() { if let error = model.error { presentError(error) } }
+    @objc func scheduleOff() { model.change { $0.schedule.enabled = false } }
+    @objc func scheduleEvening() { model.change { $0.schedule = .evening; $0.schedule.enabled = true } }
+    @objc func scheduleCustom() { model.change { $0.schedule.enabled = true } }
+    @objc func editSchedule() { showSettings(.schedule) }
+    @objc func customize() { showSettings(.appearance) }
+    @objc func openSettings() { showSettings(.general) }
+    @objc func installUpdate() { confirmUpdate() }
+    @objc func quit() { NSApp.terminate(nil) }
+
+    // MARK: Windows
+
+    private func showSettings(_ tab: SettingsTab) {
+        navigation.tab = tab
+        if settingsWindow == nil {
+            let actions = SettingsActions(checkForUpdates: { [weak self] in self?.checkForUpdates(interactive: true) },
+                                          installUpdate: { [weak self] in self?.confirmUpdate() },
+                                          showWelcome: { [weak self] in self?.showWelcome() },
+                                          setShortcut: { [weak self] in self?.applyShortcut($0) })
+            let hosting = NSHostingController(rootView: SettingsView(model: model, navigation: navigation, actions: actions))
+            hosting.sizingOptions = [.preferredContentSize] // resize as tabs change height
+            let window = NSWindow(contentViewController: hosting)
+            window.title = "E-Ink Mode Settings"; window.styleMask = [.titled, .closable]
+            window.isReleasedWhenClosed = false; window.center()
+            settingsWindow = window
+        }
+        settingsWindow?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    }
+    private func showWelcome() {
+        if welcomeWindow == nil {
+            let view = OnboardingView(model: model) { [weak self] turnOn in
+                UserDefaults.standard.set(true, forKey: "onboarded")
+                self?.welcomeWindow?.close()
+                if turnOn { self?.model.setActive(true) }
+                self?.showHint(turnOn ? "E-Ink Mode is on. Find it here any time." : "E-Ink Mode lives here in the menu bar.")
+            }
+            let window = NSWindow(contentViewController: NSHostingController(rootView: view))
+            window.title = "Welcome to E-Ink Mode"; window.styleMask = [.titled, .closable]
+            window.isReleasedWhenClosed = false; window.center()
+            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: window, queue: .main) { [weak self] _ in
+                self?.model.endPreview() // closing the window never leaves a preview running
+                UserDefaults.standard.set(true, forKey: "onboarded")
+            }
+            welcomeWindow = window
+        }
+        welcomeWindow?.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // MARK: Alerts
+
+    private func presentRecovery() {
+        showMenuBarAlert { alert in
+            alert.messageText = "E-Ink Mode didn't shut down cleanly"
+            alert.informativeText = "Your display may still be grayscale, dimmed, or have the Dock hidden. Restore it to exactly how it was before, or continue where you left off."
+            alert.addButton(withTitle: "Restore Display"); alert.addButton(withTitle: "Continue Session")
+        } response: { [weak self] response in self?.model.recover(resume: response == .alertSecondButtonReturn) }
+    }
+    private func presentError(_ message: String) {
+        showMenuBarAlert { alert in
+            alert.alertStyle = .warning
+            alert.messageText = "E-Ink Mode couldn't finish that"
+            alert.informativeText = message + "\n\nIf a display was disconnected, reconnect it and choose Restore Display."
+            alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Restore Display")
+        } response: { [weak self] response in
+            self?.model.error = nil
+            if response == .alertSecondButtonReturn { self?.model.restoreDisplay() }
+            self?.refreshIcon()
+        }
+    }
+    private func showMenuBarAlert(_ configure: @escaping (NSAlert) -> Void, response: @escaping (NSApplication.ModalResponse) -> Void) {
+        DispatchQueue.main.async {
+            let alert = NSAlert(); configure(alert)
+            NSApp.activate(ignoringOtherApps: true)
+            response(alert.runModal())
+        }
+    }
+
+    // MARK: Shortcut
+
+    private func applyShortcut(_ id: String) {
+        UserDefaults.standard.set(id, forKey: "shortcut")
+        model.hotkeyMessage = hotkeys?.register(Shortcut.presets.first { $0.id == id }) ?? ""
+    }
+
+    // MARK: Updates
+
+    private func scheduleUpdateChecks() {
+        guard Updater.feed != nil else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in self?.checkForUpdates(interactive: false) }
+        Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { [weak self] _ in self?.checkForUpdates(interactive: false) }
+    }
+    private func checkForUpdates(interactive: Bool) {
+        guard interactive || model.autoCheckUpdates else { return }
+        if interactive { model.update = .checking }
+        Updater.check { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .success(let release?): self.model.update = .available(release)
+            case .success(nil): if interactive || self.model.update == .checking { self.model.update = .upToDate }
+            case .failure(let error): if interactive { self.model.update = .failed(error.localizedDescription) }
+            }
+        }
+    }
+    private func confirmUpdate() {
+        guard case .available(let release) = model.update else { return }
+        showMenuBarAlert { alert in
+            alert.messageText = "Update to \(release.tagName)?"
+            let notes = (release.body ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            alert.informativeText = "You have \(EinkEnvironment.version). E-Ink Mode will restore your display, install the update, and reopen."
+                + (notes.isEmpty ? "" : "\n\nWhat's new:\n" + String(notes.prefix(600)))
+            alert.addButton(withTitle: "Install and Relaunch"); alert.addButton(withTitle: "View Release Page"); alert.addButton(withTitle: "Later")
+        } response: { [weak self] response in
+            guard let self else { return }
+            if response == .alertSecondButtonReturn { NSWorkspace.shared.open(release.htmlURL) }
+            guard response == .alertFirstButtonReturn else { return }
+            self.model.update = .installing
+            Updater.install(release, relaunchActive: self.model.active) { error in
+                if let error {
+                    self.model.update = .available(release)
+                    self.presentError(error.localizedDescription + "\n\nYou can download it from the release page instead.")
+                    NSWorkspace.shared.open(release.htmlURL)
+                } else { NSApp.terminate(nil) }
+            }
+        }
+    }
+
+    // MARK: Lifecycle and restoration
+
     @objc func wake() { model.poll() }
-    func registerHotkey() {
-        var event = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        let context = Unmanaged.passUnretained(self).toOpaque()
-        let result = InstallEventHandler(GetApplicationEventTarget(), { _, _, userData in
-            guard let userData else { return OSStatus(eventNotHandledErr) }
-            let delegate = Unmanaged<AppDelegate>.fromOpaque(userData).takeUnretainedValue()
-            DispatchQueue.main.async { delegate.model.toggle() }
-            return noErr
-        }, 1, &event, context, &handler)
-        let registered = RegisterEventHotKey(UInt32(kVK_ANSI_E), UInt32(cmdKey | shiftKey), EventHotKeyID(signature: 0x45494E4B, id: 1), GetApplicationEventTarget(), 0, &hotkey)
-        if result != noErr || registered != noErr { model.hotkeyMessage = "⌘⇧E is unavailable (already in use). Use the menu toggle." }
+    @objc func willPowerOff() { poweringOff = true }
+    /// `kill`, logout via launchd, or Ctrl-C still put the display back.
+    private func installSignalHandlers() {
+        for number in [SIGTERM, SIGINT, SIGHUP] {
+            signal(number, SIG_IGN)
+            let source = DispatchSource.makeSignalSource(signal: number, queue: .main)
+            source.setEventHandler { [weak self] in
+                try? self?.model.controller.shutdown(resumeScheduleOnLaunch: true)
+                exit(0)
+            }
+            source.resume(); signalSources.append(source)
+        }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard model != nil, !terminating else { return .terminateNow }
-        if model.busy { model.error = "Wait for the current change to finish, then quit."; showSettings(); return .terminateCancel }
-        do {
-            try model.controller.setMode(false)
-            terminating = true; timer?.invalidate()
-            if let hotkey { UnregisterEventHotKey(hotkey) }
-            return .terminateNow
-        } catch { model.error = "Could not restore your display. \(error.localizedDescription)"; showSettings(); return .terminateCancel }
+        guard model != nil, item != nil, !terminating else { return .terminateNow }
+        model.endPreview()
+        while true {
+            do {
+                try model.controller.shutdown(resumeScheduleOnLaunch: poweringOff)
+                terminating = true; pollTimer?.invalidate(); secondTimer?.invalidate(); hotkeys?.unregister()
+                return .terminateNow
+            } catch {
+                let alert = NSAlert(); alert.alertStyle = .critical
+                alert.messageText = "Your display couldn't be fully restored"
+                alert.informativeText = "\(error.localizedDescription)\n\nIf you disconnected a display, reconnect it and try again. E-Ink Mode stays open so nothing is lost."
+                alert.addButton(withTitle: "Try Again"); alert.addButton(withTitle: "Keep E-Ink Mode Open")
+                NSApp.activate(ignoringOtherApps: true)
+                if alert.runModal() != .alertFirstButtonReturn { poweringOff = false; return .terminateCancel }
+            }
+        }
     }
 }
+
 let app = NSApplication.shared
 let delegate = AppDelegate()
 app.delegate = delegate

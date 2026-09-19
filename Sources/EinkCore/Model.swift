@@ -27,9 +27,17 @@ public struct Schedule: Codable, Equatable {
     // Calendar matching preserves wall-clock schedules across DST; skipped times use the next valid time.
     public func boundary(at date: Date, calendar: Calendar) -> (date: Date, active: Bool) {
         func last(_ minutes: Int) -> Date {
-            calendar.nextDate(after: date.addingTimeInterval(0.001),
-                              matching: DateComponents(hour: minutes / 60, minute: minutes % 60, second: 0),
-                              matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .backward)!
+            let today = calendar.startOfDay(for: date)
+            // Resolve each civil day's occurrence forward, so a repeated DST hour
+            // has exactly one boundary (the first occurrence), even after fallback.
+            for offset in 0...2 {
+                let day = calendar.date(byAdding: .day, value: -offset, to: today)!
+                let candidate = calendar.nextDate(after: day.addingTimeInterval(-1),
+                    matching: DateComponents(hour: minutes / 60, minute: minutes % 60, second: 0),
+                    matchingPolicy: .nextTime, repeatedTimePolicy: .first, direction: .forward)!
+                if candidate <= date { return candidate }
+            }
+            preconditionFailure("Calendar could not resolve a daily schedule boundary")
         }
         let start = last(on), end = last(off)
         return start > end ? (start, true) : (end, false)
@@ -37,9 +45,10 @@ public struct Schedule: Codable, Equatable {
 }
 
 public struct Configuration: Codable, Equatable {
+    // Gentle defaults: grayscale only. Brightness and Dock changes are opt-in.
     public var grayscale = true
-    public var brightness: Double? = 0.35
-    public var hideDock = true
+    public var brightness: Double? = nil
+    public var hideDock = false
     public var reduceMotion = false
     public var reduceTransparency = false
     public var schedule = Schedule()
@@ -79,6 +88,8 @@ public struct RuntimeState: Codable {
     public var session: Session?
     public var manualUntilBoundary: Date?
     public var lastBoundary: Date?
+    /// While set and in the future, grayscale is lifted without changing the saved profile.
+    public var colorUntil: Date?
     public init() {}
 }
 
@@ -87,4 +98,8 @@ public struct Status: Codable {
     public var state: RuntimeState
     public var system: SystemSnapshot
     public var active: Bool { state.session != nil }
+    public func temporaryColorRemaining(now: Date = Date()) -> TimeInterval? {
+        guard active, let until = state.colorUntil, until > now else { return nil }
+        return until.timeIntervalSince(now)
+    }
 }
