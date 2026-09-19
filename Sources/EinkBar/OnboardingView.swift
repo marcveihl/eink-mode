@@ -54,6 +54,8 @@ struct OnboardingView: View {
                 Text("Look for ◐ at the top-right of your screen, in the menu bar. Click it for the menu.")
                 Toggle("Click ◐ to switch on and off instead (right-click for the menu)", isOn: $model.clickToFlip)
                 if let shortcutSymbol { Text("Or press \(shortcutSymbol) from any app.").foregroundStyle(.secondary) }
+                Text("Studying? Choose Start Focus in the menu: grayscale focus sessions with color breaks in between.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
             HStack {
                 Button("Not Now") { save(); finish(false) }

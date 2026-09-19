@@ -23,6 +23,17 @@ final class AppModel: ObservableObject {
     @Published var clickToFlip = UserDefaults.standard.bool(forKey: "clickToFlip") {
         didSet { UserDefaults.standard.set(clickToFlip, forKey: "clickToFlip"); changed?() }
     }
+    @Published var stats: FocusStats?
+    /// Swaps the ◐ menu bar icon for a wildcat head.
+    @Published var wildcatMode = UserDefaults.standard.bool(forKey: "wildcatMode") {
+        didSet { UserDefaults.standard.set(wildcatMode, forKey: "wildcatMode"); changed?() }
+    }
+    @Published var focusSound = UserDefaults.standard.object(forKey: "focusSound") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(focusSound, forKey: "focusSound") }
+    }
+    @Published var menuBarCountdown = UserDefaults.standard.object(forKey: "menuBarCountdown") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(menuBarCountdown, forKey: "menuBarCountdown"); changed?() }
+    }
     @Published var autoCheckUpdates = UserDefaults.standard.object(forKey: "autoCheckUpdates") as? Bool ?? true {
         didSet { UserDefaults.standard.set(autoCheckUpdates, forKey: "autoCheckUpdates") }
     }
@@ -38,6 +49,8 @@ final class AppModel: ObservableObject {
 
     var active: Bool { status?.active == true }
     var colorRemaining: TimeInterval? { status?.temporaryColorRemaining() }
+    var focus: FocusSession? { status?.focusing == true ? status?.state.focus : nil }
+    var focusSettings: FocusSettings { status?.configuration.focus ?? FocusSettings() }
     var schedule: ScheduleStatus? { status.map { ScheduleStatus(configuration: $0.configuration, state: $0.state) } }
     var hasBrightness: Bool { status?.system.values.keys.contains { $0.hasPrefix("brightness:") } == true }
 
@@ -56,12 +69,13 @@ final class AppModel: ObservableObject {
             do { if checkLegacy { try EinkEnvironment.checkLegacy() }; try operation() }
             catch { failure = error.localizedDescription }
             let result = Result { try self.controller.status() }
+            let stats = try? self.controller.focusStats()
             DispatchQueue.main.async {
                 self.pending -= 1; self.busy = self.pending > 0
                 if let failure { self.error = failure; if !quiet { self.onUserError?(failure) } }
                 else if case .success = result { self.error = nil } // a successful operation clears stale problems
                 switch result {
-                case .success(let status): self.status = status
+                case .success(let status): self.status = status; if let stats { self.stats = stats }
                 case .failure(let error): self.error = error.localizedDescription
                 }
                 self.changed?()
@@ -81,6 +95,12 @@ final class AppModel: ObservableObject {
         guard !needsRecovery else { return }
         perform { try self.controller.setMode(on) }
     }
+    func startFocus(sessions: Int? = nil) {
+        guard !needsRecovery, previewRemaining == nil else { return }
+        perform { try self.controller.startFocus(sessions: sessions) }
+    }
+    func stopFocus() { perform { try self.controller.stopFocus() } }
+    func skipBreak() { perform { try self.controller.skipBreak() } }
     func startColor(minutes: Double = 5) { perform { try self.controller.startTemporaryColor(for: minutes * 60) } }
     func endColor() { perform { try self.controller.endTemporaryColor() } }
     func change(_ update: @escaping (inout Configuration) throws -> Void) { perform { try self.controller.edit(update) } }

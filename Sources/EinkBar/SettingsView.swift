@@ -2,7 +2,7 @@ import SwiftUI
 import EinkCore
 import EinkMac
 
-enum SettingsTab: String { case appearance, schedule, general }
+enum SettingsTab: String { case appearance, focus, schedule, general }
 final class SettingsNavigation: ObservableObject { @Published var tab: SettingsTab = .general }
 
 struct SettingsView: View {
@@ -13,13 +13,15 @@ struct SettingsView: View {
         VStack(spacing: 0) {
             Picker("Section", selection: $navigation.tab) {
                 Text("Appearance").tag(SettingsTab.appearance)
+                Text("Focus").tag(SettingsTab.focus)
                 Text("Schedule").tag(SettingsTab.schedule)
                 Text("General").tag(SettingsTab.general)
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 320).padding(.top, 16)
+            .pickerStyle(.segmented).labelsHidden().frame(width: 400).padding(.top, 16)
             Group {
                 switch navigation.tab {
                 case .appearance: AppearanceSettings(model: model)
+                case .focus: FocusSettingsView(model: model, showStats: actions.showStats)
                 case .schedule: ScheduleSettings(model: model)
                 case .general: GeneralSettings(model: model, actions: actions)
                 }
@@ -37,6 +39,7 @@ struct SettingsActions {
     var installUpdate: () -> Void
     var showWelcome: () -> Void
     var setShortcut: (String) -> Void
+    var showStats: () -> Void = {}
 }
 
 /// A caption under a control.
@@ -189,8 +192,19 @@ struct GeneralSettings: View {
         Form {
             Section("Menu bar icon") {
                 Toggle("Click the icon to switch E-Ink Mode on and off", isOn: $model.clickToFlip)
-                Hint(model.clickToFlip ? "Click ◐ to switch. Right-click, Control-click, or press and hold to open the menu."
-                                       : "Click ◐ to open the menu.")
+                Hint(model.clickToFlip ? "Click the icon to switch. Right-click, Control-click, or press and hold to open the menu."
+                                       : "Click the icon to open the menu.")
+                Toggle(isOn: $model.wildcatMode) {
+                    HStack(spacing: 10) {
+                        Text("Wildcat mode")
+                        HStack(spacing: 6) {
+                            ForEach([WildcatIcon.Style.outline, .filled, .half], id: \.self) { style in
+                                Image(nsImage: WildcatIcon.image(style, size: 18, accessibility: "Wildcat icon")).renderingMode(.template)
+                            }
+                        }.foregroundStyle(.secondary)
+                    }
+                }
+                Hint("Swaps ◐ for a wildcat: outlined when off, shaded in when on, half-shaded while showing color. Go 'Cats!")
             }
             Section("Keyboard shortcut") {
                 Picker("Switch on and off", selection: Binding(get: { shortcut }, set: { shortcut = $0; actions.setShortcut($0) })) {
