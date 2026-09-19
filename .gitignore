@@ -1,5 +1,9 @@
-# build artifacts
-einkctl
-EinkBar.app/
-*.o
 .DS_Store
+.build/
+dist/
+.qa/
+
+# Generated prototype binaries
+prototype0/EinkBar.app/
+prototype0/einkctl
+*.o

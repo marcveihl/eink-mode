@@ -1,129 +1,56 @@
 # E-Ink Mode
 
-One click turns a Mac into a calm monochrome workstation. Click again and
-everything goes back exactly as it was.
+A native macOS menu bar utility for a calmer monochrome workspace. The original experiment remains untouched in `prototype0/`.
 
-Grayscale, dimmed, Dock hidden — for late-night coding, writing and terminal
-work. Think "iPhone grayscale mode, but a first-class focus mode for the desktop."
+## Build and test
 
-<p align="center">
-  <img src="docs/img/icon-off.png" alt="Menu bar icon, mode off" height="34">
-  &nbsp;&nbsp;→&nbsp;&nbsp;
-  <img src="docs/img/icon-on.png" alt="Menu bar icon, mode on" height="34">
-</p>
-
-The menu bar icon is the whole interface: **◐ off**, **● on**. Left-click
-toggles, right-click opens a menu.
-
-## Status
-
-Working prototype. It does what it says on one Mac (macOS 15.7, Apple Silicon)
-and has not been tested anywhere else. It is not signed or notarised.
-
-## Install
+Requires macOS 13+, Xcode command-line tools with Swift 5.9 or newer, and Python 3 for CLI integration tests. No third-party dependencies.
 
 ```sh
-git clone <this repo> && cd eink-mode
-./build.sh
-open EinkBar.app
+./scripts/test.sh
+./scripts/build.sh
+open 'dist/E-Ink Mode.app'
 ```
 
-Requires the Xcode command line tools for `swiftc`. To keep it running across
-reboots, add `EinkBar.app` to System Settings → General → Login Items.
+The app is locally ad-hoc signed. This is a personal QA build, not a notarized public distribution.
 
 ## Use
 
-| | |
-|---|---|
-| Left-click the icon | toggle |
-| Right-click the icon | menu — enable/restore, edit config, quit |
-| `./eink on` / `off` / `toggle` | same thing from the shell |
-| `./eink status` | what is active and what will be restored |
+Click the ◐ menu icon to open inline settings. Enable **Click to flip** to toggle E-Ink Mode with a quick click instead; long press (half a second), right-click, or Control-click the icon to open settings. This preference persists across app launches. **Enable E-Ink Mode** is the first action. **⌘⇧E** toggles globally; if another app owns the shortcut, the menu explains the conflict.
 
-The CLI and the menu bar share one state file, so they never disagree. Toggling
-from the terminal updates the icon within ~2s.
+- Grayscale can be switched independently while active, without losing the original capture.
+- Brightness applies only to displays whose current brightness can be captured. Each display restores its own value. External displays without native brightness support remain unchanged.
+- Dock hiding and reduced transparency are optional. Reduced motion is offered only when its native getter/setter are available.
+- Settings take effect immediately while active and persist for the CLI and next activation. Turning a profile option off restores its captured value. Grayscale off explicitly returns to color until full restoration.
+- The optional nightly schedule defaults to **21:00–07:00 daily**, using local wall-clock time. It catches up on wake and app launch. Manual mode changes hold until the next scheduled boundary. Editing the schedule resets the override and reconciles immediately.
+- Scheduling requires the app to be running. Enable **Launch at login** for daily use. Merely launching the app does not enable an unscheduled profile.
+- Quit restores the original display. If restoration fails, the app stays open with a retry action. On restart, an unfinished session offers **Restore display** or **Resume** before scheduling proceeds.
 
-### Config
+Warmth remains managed by f.lux or Night Shift. Notification suppression is unavailable because this implementation cannot reliably capture and restore macOS Focus state. Smart/Classic Invert is deliberately unmanaged; prototype0 cannot capture it reliably.
 
-`~/.config/eink/config`, sourced as shell:
+## CLI
 
-```sh
-EINK_BRIGHTNESS=0.35   # 0.0-1.0, or empty to leave brightness alone
-EINK_HIDE_DOCK=yes
-```
-
-## What it changes
-
-| Setting | Mechanism | Restored |
-|---|---|---|
-| Grayscale | `UAGrayscaleSetEnabled` (UniversalAccess) | yes |
-| Brightness | `DisplayServicesSetBrightness` | yes, to the exact prior value |
-| Dock autohide | `com.apple.dock autohide` | yes |
-
-Everything is captured **before** it is changed and restored from that capture,
-so a setting you already had on stays on after a round trip. If you were already
-running grayscale, exiting E-Ink Mode leaves it enabled.
-
-Colour temperature is deliberately not managed — f.lux and Night Shift own that,
-and both stack with grayscale rather than fighting it.
-
-## If you get stuck in grey
-
-Grayscale persists across reboot, so if something wedges, it will still be grey
-when you come back. Any of these clears it:
+The app bundles a CLI at `dist/E-Ink Mode.app/Contents/MacOS/eink` (or `.build/release/eink`).
 
 ```sh
-./einkctl gray off
-./eink off
+.build/release/eink status
+.build/release/eink on
+.build/release/eink set grayscale off
+.build/release/eink set brightness 35
+.build/release/eink set dock on
+.build/release/eink set transparency on
+.build/release/eink set schedule-on 21:00
+.build/release/eink set schedule-off 07:00
+.build/release/eink set schedule on
+.build/release/eink off
 ```
 
-Or System Settings → Accessibility → Display → Color Filters.
+App and CLI share atomic JSON configuration and a restoration journal in `~/Library/Application Support/E-Ink Mode/`. A process lock serializes operations. `EINK_HOME` selects an isolated directory. `EINK_SIMULATED=1` changes only a simulated system file and never your display; combine both for testing.
 
-Quitting the app turns the mode off first, so you can't quit your way into a
-grey screen with no UI left to fix it.
+Existing prototype configuration is imported once as plain data from `~/.config/eink/config`. Shell expressions are never executed. Restore and quit prototype0 before enabling the new app; an existing legacy saved-state file blocks mutations to avoid losing the original capture. Do not run both versions at once.
 
-## Notes for anyone building something similar
+## Recovery
 
-**`CGDisplayForceToGray` is a no-op on macOS 15 / Apple Silicon.** It stores a
-flag that `CGDisplayUsesForceToGray` reads straight back, so it round-trips
-perfectly in tests while changing nothing on screen. This project was built on it
-first and every automated check passed against a display that was still in full
-colour. Verify with your eyes.
+Run `.build/release/eink off` to restore captured settings. If a captured display is disconnected, reconnect it and retry. Failed restores retain `state.json`; do not delete it. An `off` command without a capture changes nothing, protecting pre-existing accessibility settings. Malformed config/state files cause an explicit error rather than guessing what to restore.
 
-**`UAWhiteOnBlackSetEnabled` is similarly dead.** The working invert symbol is
-`UAInvertColorsUserInitiatedSetEnabled`, found by enumerating the framework's
-exports with `dyld_info -exports` rather than guessing names.
-
-**`defaults` cannot write `com.apple.universalaccess`** (TCC), and SIP blocks
-`launchctl kickstart` of `universalaccessd`. The UA* APIs go through the daemon
-with an entitlement `defaults` lacks. `defaults read` also lags the API by a
-second or two, so it is not a reliable way to check current state.
-
-**Screenshots cannot capture the grayscale filter.** `screencapture` grabs the
-pre-filter framebuffer — a capture taken during E-Ink Mode is pixel-identical to
-one taken outside it. That is why there are no before/after display shots in this
-README: an honest one is not possible, and a post-processed one would be a
-drawing, not a screenshot.
-
-## Not built
-
-Smart Invert is tabled. It works (`UAInvertColorsUserInitiatedSetEnabled`), but
-it and grayscale want opposite things: Smart Invert exists to spare images so
-photos stay usable, grayscale exists to flatten everything. Stack them and
-grayscale wins on images, making the exemption invisible. They are two modes, not
-two features to combine.
-
-Also not built: global hotkey, Do Not Disturb (macOS 15 no longer exposes prior
-Focus state without Full Disk Access), app blocking, scheduling, multi-monitor
-config, palette quantization, dithering, Windows.
-
-## Background
-
-The original product spec is in [docs/PRD.md](docs/PRD.md) — product vision,
-prioritised requirements and the prototype milestones this repo is step one of.
-Worth reading §27 and §29: the open question was never whether this could be
-built, but whether monochrome-on-demand actually changes how you work.
-
-## License
-
-MIT
+See [QA checklist](docs/QA.md) and [implementation scope](docs/IMPLEMENTATION.md).
