@@ -178,6 +178,11 @@ struct ScheduleSettings: View {
 
 struct GeneralSettings: View {
     @ObservedObject var model: AppModel
+    /// The installed location, shortened with ~ (docs snapshots show the standard location).
+    private var appPath: String {
+        ProcessInfo.processInfo.environment["EINK_SIMULATED"] == "1" ? "/Applications/E-Ink Mode.app"
+            : (Bundle.main.bundlePath as NSString).abbreviatingWithTildeInPath
+    }
     let actions: SettingsActions
     @AppStorage("shortcut") private var shortcut = Shortcut.presets[0].id
     var body: some View {
@@ -221,7 +226,7 @@ struct GeneralSettings: View {
                     Button("Show Welcome Guide", action: actions.showWelcome)
                     Button("Restore Display Now") { model.restoreDisplay() }.disabled(!model.active && !model.needsRecovery)
                 }
-                Hint("Quitting always restores your display. From Terminal: “\(Bundle.main.bundlePath)/Contents/MacOS/eink off”.")
+                Hint("Quitting always restores your display. From Terminal: “\(appPath)/Contents/MacOS/eink off”.")
             }
         }
         .formStyle(.grouped)

@@ -11,7 +11,7 @@ enum QASnapshots {
         let controller = model.controller
         let savedFlip = UserDefaults.standard.object(forKey: "clickToFlip") // don't leak QA choices into real preferences
         var shots: [(String, () -> Void, () -> AnyView)] = [
-            ("welcome", { try? controller.setMode(false) }, { AnyView(OnboardingView(model: model) { _ in }) }),
+            ("welcome", { try? controller.setMode(false); model.clickToFlip = false /* new-user default */ }, { AnyView(OnboardingView(model: model) { _ in }) }),
             ("settings-appearance", {
                 try? controller.edit { $0.brightness = 0.45; $0.hideDock = false }
                 navigation.tab = .appearance
@@ -35,21 +35,32 @@ enum QASnapshots {
             let (name, prepare, view) = shots.removeFirst()
             prepare()
             model.status = try? controller.status()
-            let window = NSWindow(contentRect: .zero, styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: .zero, styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             window.appearance = NSAppearance(named: .aqua)
+            window.isReleasedWhenClosed = false
+            window.title = name == "welcome" ? "Welcome to E-Ink Mode" : "E-Ink Mode Settings"
             window.contentViewController = NSHostingController(rootView: view())
             window.setFrameOrigin(NSPoint(x: -4000, y: 0))
             NSApp.activate(ignoringOtherApps: true)
             window.makeKeyAndOrderFront(nil) // key windows draw controls with their accent color
             // Let SwiftUI lay out and AppKit controls draw before capturing.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                NSApp.activate(ignoringOtherApps: true)
+                window.makeKeyAndOrderFront(nil) // re-assert key status so the title bar renders active
                 window.makeFirstResponder(nil)
-                if let content = window.contentView, let rep = content.bitmapImageRepForCachingDisplay(in: content.bounds) {
-                    content.cacheDisplay(in: content.bounds, to: rep)
-                    try? rep.representation(using: .png, properties: [:])?.write(to: folder.appendingPathComponent("\(name).png"))
-                    print("snapshot \(name).png \(Int(content.bounds.width))x\(Int(content.bounds.height))")
-                }
-                window.orderOut(nil)
+                // Capture the real window (title bar included, no system shadow), then frame it on a backdrop
+                // so the image is opaque and readable on light and dark pages alike.
+                let raw = FileManager.default.temporaryDirectory.appendingPathComponent("eink-\(name)-raw.png")
+                let capture = Process()
+                capture.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                capture.arguments = ["-x", "-o", "-l\(window.windowNumber)", raw.path]
+                try? capture.run(); capture.waitUntilExit()
+                if let image = NSImage(contentsOf: raw), let framed = framedOnBackdrop(image) {
+                    try? framed.write(to: folder.appendingPathComponent("\(name).png"))
+                    print("snapshot \(name).png \(Int(image.size.width))x\(Int(image.size.height))")
+                } else { print("snapshot \(name) failed") }
+                try? FileManager.default.removeItem(at: raw)
+                window.close()
                 next()
             }
         }
@@ -72,7 +83,7 @@ enum QASnapshots {
             ("menu-color", { try? controller.startTemporaryColor(for: 272) }),
         ]
         let backdrop = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 480), styleMask: [.borderless], backing: .buffered, defer: false)
-        backdrop.backgroundColor = NSColor(calibratedWhite: 0.93, alpha: 1)
+        backdrop.backgroundColor = QASnapshots.backdrop
         backdrop.appearance = NSAppearance(named: .aqua)
         backdrop.center(); backdrop.orderFrontRegardless()
         let inertTarget = NSObject() // menu item targets are weak; keep one alive while rendering
@@ -100,5 +111,28 @@ enum QASnapshots {
             menu.popUp(positioning: nil, at: origin, in: backdrop.contentView)
         }
         backdrop.orderOut(nil)
+    }
+
+    static let backdrop = NSColor(calibratedWhite: 0.93, alpha: 1)
+
+    /// Draws `image` with a soft window shadow on an opaque backdrop, at the capture's pixel density.
+    private static func framedOnBackdrop(_ image: NSImage, padding: CGFloat = 36) -> Data? {
+        guard let source = image.representations.first else { return nil }
+        let scale = CGFloat(source.pixelsWide) / image.size.width
+        let size = NSSize(width: image.size.width + padding * 2, height: image.size.height + padding * 2)
+        guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale),
+                                         bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
+        rep.size = size
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
+        backdrop.setFill(); NSRect(origin: .zero, size: size).fill()
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.28)
+        shadow.shadowBlurRadius = 18; shadow.shadowOffset = NSSize(width: 0, height: -6)
+        shadow.set()
+        image.draw(in: NSRect(x: padding, y: padding, width: image.size.width, height: image.size.height))
+        NSGraphicsContext.restoreGraphicsState()
+        return rep.representation(using: .png, properties: [:])
     }
 }
