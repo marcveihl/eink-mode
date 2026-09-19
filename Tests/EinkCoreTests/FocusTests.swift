@@ -88,9 +88,26 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(focus.round, 2); XCTAssertEqual(focus.phaseEnds, at(52)); XCTAssertTrue(gray)
         XCTAssertThrowsError(try controller.skipBreak(now: at(28)), "no break during focus")
     }
-    func testTemporaryColorIsUnavailableDuringFocus() throws {
-        try controller.startFocus(now: start)
-        XCTAssertThrowsError(try controller.startTemporaryColor(now: at(1)))
+    func testColorPeekDuringFocusKeepsTheRoundRunning() throws {
+        try controller.edit(now: start) { $0.grayscale = false } // profile off: focus still forces grayscale
+        try controller.startFocus(sessions: 2, now: start)
+        try controller.startTemporaryColor(for: 300, now: at(10))
+        XCTAssertFalse(gray, "peek shows color mid-focus")
+        XCTAssertEqual(try controller.status().temporaryColorRemaining(now: at(11)) ?? 0, 240, accuracy: 0.01)
+        XCTAssertEqual(try controller.status().state.focus?.phaseEnds, at(25), "the round's timer is unchanged")
+        try controller.tick(now: at(15)); XCTAssertTrue(gray, "grayscale returns when the peek ends")
+        try controller.startTemporaryColor(now: at(16))
+        try controller.endTemporaryColor(now: at(17)); XCTAssertTrue(gray, "cancel returns to focus grayscale")
+        try controller.tick(now: at(26)); XCTAssertFalse(gray)
+        XCTAssertThrowsError(try controller.startTemporaryColor(now: at(27)), "a break is already color")
+        XCTAssertNil(try controller.status().temporaryColorRemaining(now: at(27)))
+    }
+    func testDailyGoalDefaultsToFourAndIsSettable() throws {
+        XCTAssertEqual(FocusSettings().dailyGoal, 4)
+        XCTAssertEqual(try controller.focusStats(now: start).goal, 4)
+        try controller.edit(now: start) { $0.focus.dailyGoal = 6 }
+        XCTAssertEqual(try controller.focusStats(now: start).goal, 6)
+        XCTAssertThrowsError(try controller.edit(now: start) { $0.focus.dailyGoal = 0 })
     }
     func testScheduleWaitsForTheRoundToFinish() throws {
         var config = try controller.status().configuration

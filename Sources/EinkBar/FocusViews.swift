@@ -55,6 +55,14 @@ struct FocusStatsView: View {
             ProgressView(value: Double(min(stats.today.completed, stats.goal)), total: Double(stats.goal))
                 .tint(.primary)
                 .accessibilityLabel("Daily goal progress: \(stats.today.completed) of \(stats.goal)")
+            HStack {
+                Spacer()
+                Stepper("Daily goal: \(model.focusSettings.dailyGoal) session\(model.focusSettings.dailyGoal == 1 ? "" : "s")",
+                        value: Binding(get: { model.focusSettings.dailyGoal }, set: { goal in model.change { $0.focus.dailyGoal = goal } }),
+                        in: 1...24)
+                    .font(.callout).foregroundStyle(.secondary).fixedSize()
+                    .disabled(model.needsRecovery)
+            }
         }
     }
 
@@ -67,6 +75,9 @@ struct FocusStatsView: View {
                 if let hovered {
                     Text("\(hovered.label): \(hovered.completed) session\(hovered.completed == 1 ? "" : "s") · \(hours(hovered.minutes))")
                         .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                } else {
+                    // Keyed here rather than on the plot, so it never collides with bars.
+                    Text("- - -  goal \(stats.goal)").font(.caption).foregroundStyle(.secondary)
                 }
             }
             Chart {
@@ -85,9 +96,6 @@ struct FocusStatsView: View {
                 RuleMark(y: .value("Goal", stats.goal))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
                     .foregroundStyle(Color.primary.opacity(0.45))
-                    .annotation(position: .top, alignment: .trailing) {
-                        Text("Goal \(stats.goal)").font(.caption2).foregroundStyle(.secondary)
-                    }
             }
             .chartYScale(domain: 0...max(stats.goal + 1, (stats.week.map(\.completed).max() ?? 0) + 1))
             .chartYAxis { AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in

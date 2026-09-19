@@ -6,8 +6,8 @@ public struct FocusSettings: Codable, Equatable {
     public var breakMinutes = 5
     /// Focus sessions per round ("x number of sessions").
     public var sessions = 4
-    /// Completed focus sessions that make a good day.
-    public var dailyGoal = 8
+    /// Completed focus sessions that make a good day (user-settable).
+    public var dailyGoal = 4
     public init() {}
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)

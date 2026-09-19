@@ -116,7 +116,7 @@ public struct Status: Codable {
     public var active: Bool { state.session != nil }
     public var focusing: Bool { active && state.focus != nil }
     public func temporaryColorRemaining(now: Date = Date()) -> TimeInterval? {
-        guard active, state.focus == nil, let until = state.colorUntil, until > now else { return nil }
+        guard active, state.focus?.phase != .rest, let until = state.colorUntil, until > now else { return nil }
         return until.timeIntervalSince(now)
     }
 }

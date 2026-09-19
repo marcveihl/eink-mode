@@ -115,8 +115,12 @@ public final class Controller {
         try store.locked {
             var state = try state(); let config = try configuration()
             guard state.session != nil else { throw EinkError.message("Turn on E-Ink Mode first.") }
-            guard config.grayscale else { throw EinkError.message("Grayscale is already off in your profile.") }
-            guard state.focus == nil else { throw EinkError.message("Color comes back on its own during focus breaks.") }
+            if let focus = state.focus {
+                // A quick color peek mid-focus; the round's timer keeps running.
+                guard focus.phase == .focus else { throw EinkError.message("You're on a break — color is already on.") }
+            } else {
+                guard config.grayscale else { throw EinkError.message("Grayscale is already off in your profile.") }
+            }
             state.colorUntil = now.addingTimeInterval(duration)
             try apply(config, state: &state, now: now)
         }
@@ -249,7 +253,7 @@ public final class Controller {
         guard session.phase != "restoring" else { throw EinkError.message("Restore the unfinished session before changing settings.") }
         var effective = config
         if let focus = state.focus { effective.grayscale = focus.phase == .focus } // focus in grayscale, break in color
-        else if let until = state.colorUntil, until > now { effective.grayscale = false }
+        if let until = state.colorUntil, until > now { effective.grayscale = false } // temporary color wins while it lasts
         let targets = desired(effective, original: session.original)
         let keys = Set(targets.keys).union(session.managed).sorted()
         session.phase = "applying"

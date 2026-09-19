@@ -95,6 +95,7 @@ enum QASnapshots {
                 try? controller.endTemporaryColor(); try? controller.setMode(false)
                 try? controller.startFocus(sessions: 4, now: Date().addingTimeInterval(-6.5 * 60))
             }),
+            ("menu-focus-color", { try? controller.startTemporaryColor(for: 272) }),
             ("menu-break", {
                 try? controller.stopFocus()
                 try? controller.startFocus(sessions: 4, now: Date().addingTimeInterval(-(25 + 25 + 5 + 0.5) * 60))
@@ -132,7 +133,7 @@ enum QASnapshots {
         backdrop.orderOut(nil)
     }
 
-    /// Three weeks of plausible study history: a 5-day streak, today 3 of 8.
+    /// Three weeks of plausible study history: a 7-day streak, today 3 of 4.
     private static func seedHistory(controller: Controller) {
         var history = FocusHistory()
         let calendar = Calendar.autoupdatingCurrent

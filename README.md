@@ -94,16 +94,19 @@ Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus 
 
 - **Always know where you are.** The menu bar shows a live countdown (⏱ 18:30), and the menu says *Focus 1 of 4 · 18:30 left* or *Break · 4:30 left, then focus 3 of 4*.
 - **Gentle cues.** A soft sound and a short note under the icon mark each switch between focus and break. You can turn both off.
+- **Everything stays within reach.** Your other options still work mid-focus: **Color for 5 Minutes** gives you a quick color peek, and the focus timer keeps running while you look. Schedule, Customize Appearance, and Settings are all still in the menu.
+
+  <img src="docs/img/menu-focus-color.png" width="380" alt="Menu mid-focus with a color peek: Focus 1 of 4 · 18:29 left, Resume grayscale · 4:32 remaining">
 - **Flexible.** **Skip Break** starts the next session right away. **Stop Focus Session** ends the round, and minutes you already focused still count.
-- **Reliable.** If your Mac sleeps mid-round, the round catches up when it wakes. If the app restarts, the round continues. Color for 5 minutes and the schedule step aside while a round runs.
+- **Reliable.** If your Mac sleeps mid-round, the round catches up when it wakes. If the app restarts, the round continues. The schedule waits until the round is over.
 
 ### Your daily tracker
 
 **Focus Stats…** shows how your studying adds up.
 
-<p align="center"><img src="docs/img/focus-stats.png" width="576" alt="Focus Stats: today 3 of 8 sessions with progress bar, 7-day streak, 36 this week, 91 all time, best day 9, and a 7-day bar chart with a goal line"></p>
+<p align="center"><img src="docs/img/focus-stats.png" width="576" alt="Focus Stats: today 3 of 4 sessions with progress bar and daily goal control, 7-day streak, 36 this week, 91 all time, best day 9, and a 7-day bar chart with a goal line"></p>
 
-- **Today:** completed sessions against your **daily goal** (8 by default), plus minutes focused.
+- **Today:** completed sessions against your **daily goal**, plus minutes focused. The goal is 4 sessions a day by default. Set it (1–24) right under the progress bar, or in **Settings → Focus**.
 - **Streak:** days in a row with at least one completed session, and your best streak. Nothing yet today? Yesterday still counts, so the streak stays alive until midnight.
 - **This week, all time, and best day**, plus how many days you've met your goal.
 - **Last 7 days:** a bar per day, with your goal as a dashed line.
@@ -111,7 +114,7 @@ Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus 
 
 ### Make it yours
 
-Choose lengths and goals in **Settings → Focus**: focus 5–90 minutes, breaks 1–30 minutes, 1–12 sessions per round, and a daily goal of 1–24 sessions. Changes apply to your next round; a round in progress keeps its timing.
+Choose lengths and goals in **Settings → Focus**: focus 5–90 minutes, breaks 1–30 minutes, 1–12 sessions per round, and a daily goal of 1–24 sessions (default 4). Changes apply to your next round; a round in progress keeps its timing.
 
 <p align="center"><img src="docs/img/settings-focus.png" width="516" alt="Focus settings: focus length, break length, sessions per round, daily goal, sound and menu bar countdown toggles"></p>
 
@@ -217,7 +220,7 @@ E-Ink Mode has no accounts, analytics, or tracking. The only network request is 
 Requires Xcode command-line tools (Swift 5.9+) and Python 3 for the CLI tests. No third-party dependencies.
 
 ```sh
-./scripts/test.sh     # 65 core tests + process-level CLI tests against a simulated system
+./scripts/test.sh     # 66 core tests + process-level CLI tests against a simulated system
 ./scripts/build.sh    # universal app + dist/E-Ink-Mode-<VERSION>.zip + install.sh
 ```
 

@@ -43,7 +43,7 @@ enum MenuBuilder {
         let color = model.colorRemaining
         let loading = model.status == nil
         let focus = model.focus
-        let state = focus.map { $0.phase == .focus ? "Focusing" : "Break, showing color" }
+        let state = focus.map { $0.phase == .focus ? (color == nil ? "Focusing" : "Focusing, showing color") : "Break, showing color" }
             ?? (active ? (color == nil ? "On" : "On, showing color") : "Off")
         header(menu, loading ? "E-Ink Mode" : "E-Ink Mode · \(state)")
         let shortcut = Shortcut.saved
@@ -54,7 +54,13 @@ enum MenuBuilder {
         if let focus {
             live.focus = add(focusLine(focus), nil)
             live.focus?.isEnabled = true
-            if focus.phase == .rest { _ = add("Skip Break", #selector(AppDelegate.skipBreak)) }
+            if focus.phase == .focus {
+                // Everyday options stay available mid-focus: a color peek doesn't pause the round.
+                if let color { live.color = add("Resume grayscale · \(countdown(color)) remaining", #selector(AppDelegate.endColor)) }
+                else { _ = add("Color for 5 Minutes", #selector(AppDelegate.startColor)) }
+            } else {
+                _ = add("Skip Break", #selector(AppDelegate.skipBreak))
+            }
             _ = add("Stop Focus Session", #selector(AppDelegate.stopFocus))
         } else if active, model.status?.configuration.grayscale == true {
             if let color {

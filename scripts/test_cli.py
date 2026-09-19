@@ -77,11 +77,16 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     assert focus["state"]["focus"]["phase"] == "focus" and focus["state"]["focus"]["rounds"] == 2
     assert focus["system"]["values"]["grayscale"] == {"flag": {"_0": True}}
     run("focus", good=False)          # one round at a time
+    peek = run("color", "2")          # color peek mid-focus; the round keeps going
+    assert peek["system"]["values"]["grayscale"] == {"flag": {"_0": False}} and "focus" in peek["state"]
+    assert run("grayscale")["system"]["values"]["grayscale"] == {"flag": {"_0": True}}
+    assert run("set", "daily-goal", "6")["configuration"]["focus"]["dailyGoal"] == 6
+    run("set", "daily-goal", "4")
     run("focus", "skip", good=False)  # no break yet
     stopped = run("focus", "stop")
     assert "focus" not in stopped["state"] and stopped["system"]["values"] == original
     stats = subprocess.run([binary, "stats"], env=env, text=True, capture_output=True, timeout=15)
-    assert stats.returncode == 0 and "Today: 0 of 8 focus sessions" in stats.stdout, stats
+    assert stats.returncode == 0 and "Today: 0 of 4 focus sessions" in stats.stdout, stats
     # A resumed process restores the durable journal left by a previous process.
     run("on")
     run("resume")
@@ -89,4 +94,4 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     assert run("off")["system"]["values"] == original
     pathlib.Path(directory, "state.json").write_text("corrupt")
     assert "Cannot read state.json" in run("on", good=False)
-print("CLI integration passed: settings, validation, restart recovery, concurrent mode commands and configuration edits, temporary color, evening preset, focus rounds and stats, restoration")
+print("CLI integration passed: settings, validation, restart recovery, concurrent mode commands and configuration edits, temporary color, evening preset, focus rounds, color peeks and stats, restoration")
