@@ -35,7 +35,7 @@ The script downloads the latest version, checks it, quits any older copy (restor
 
 1. Download `E-Ink-Mode-<version>.zip` from the [latest release](https://github.com/marcveihl/eink-mode/releases) and double-click it to unzip.
 2. Drag **E-Ink Mode** into your **Applications** folder.
-3. Double-click it. Because this beta isn't notarized by Apple yet, macOS will say it *can't verify* the app. Click **Done** (not *Move to Trash*).
+3. Double-click it. Because this beta isn't notarized by Apple yet, macOS will say it *can't verify* the app. Click **Done** (or **OK** on older macOS), not *Move to Trash*.
 4. Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to *"E-Ink Mode" was blocked*. Confirm with your password.
 
 You only do this once. Later updates install from inside the app.
@@ -47,7 +47,7 @@ If you open the app from Downloads, it offers to **move itself into Applications
 
 A short welcome guide explains what will change **before** anything changes.
 
-<p align="center"><img src="docs/img/welcome.png" width="500" alt="Welcome window with four steps: what it does, try it first, optional extras, where to find it"></p>
+<p align="center"><img src="docs/img/welcome.png" width="536" alt="Welcome window with four steps: what it does, try it first, optional extras, where to find it"></p>
 
 1. **What it does:** grayscale only. Your apps, files, and settings stay the same.
 2. **Try it first:** *Preview Grayscale for 10 Seconds* shows the effect and switches back on its own.
@@ -88,12 +88,12 @@ When time is up, grayscale returns automatically, even if your Mac was asleep in
 
 Let E-Ink Mode turn on in the evening and off in the morning. Pick **Schedule → Evening · 9:00 PM – 7:00 AM** from the menu, or choose your own times in **Settings → Schedule**.
 
-<p align="center"><img src="docs/img/settings-schedule.png" width="480" alt="Schedule settings with Never, Evening, and Custom options and a 'What happens next' explanation"></p>
+<p align="center"><img src="docs/img/settings-schedule.png" width="516" alt="Schedule settings with Never, Evening, and Custom options and a 'What happens next' explanation"></p>
 
 - **You can always predict it.** The menu and settings say what happens next in plain words: *Turns on tonight at 9:00 PM*, *Until 7:00 AM*.
 - **Switching by hand always wins.** If you turn it off during the evening, the schedule leaves it off until its next change, and the menu says so: *Off by hand · resumes 7:00 AM*.
 
-  <img src="docs/img/menu-off.png" width="375" alt="Menu showing Schedule · Off by hand · resumes 7:00 AM">
+  <img src="docs/img/menu-off.png" width="382" alt="Menu showing Schedule · Off by hand · resumes 7:00 AM">
 - **It catches up** after your Mac wakes from sleep. After a restart or logout, it picks up the current period again when the app reopens.
 - The schedule runs while the app is open. Turn on **Open E-Ink Mode at login** so it works every day. Opening the app never turns E-Ink Mode on by itself.
 
@@ -101,20 +101,20 @@ Let E-Ink Mode turn on in the evening and off in the morning. Pick **Schedule �
 
 Everything beyond grayscale is optional and **off by default**. Changes apply immediately while E-Ink Mode is on, and each one goes back to its original value when you turn E-Ink Mode off.
 
-<p align="center"><img src="docs/img/settings-appearance.png" width="480" alt="Appearance settings: Grayscale, Dim the screen with slider, Auto-hide the Dock, Reduce motion, Reduce transparency"></p>
+<p align="center"><img src="docs/img/settings-appearance.png" width="516" alt="Appearance settings: Grayscale, Dim the screen with slider, Auto-hide the Dock, Reduce motion, Reduce transparency"></p>
 
 | Option | Notes |
 |---|---|
 | **Grayscale** | The core effect. |
 | **Dim the screen** | Sets your chosen brightness while on. Works on built-in and Apple displays. Other external monitors keep their own controls. |
 | **Auto-hide the Dock** | Hides the Dock until you move the pointer to it. |
-| **Reduce motion / transparency** | macOS accessibility options, shown only when your Mac supports them. |
+| **Reduce motion / transparency** | macOS accessibility options. Greyed out if your Mac doesn't support them. |
 
 *What this Mac supports* lists anything your Mac can't control.
 
 ## Settings
 
-<p align="center"><img src="docs/img/settings-general.png" width="480" alt="General settings: click behavior, keyboard shortcut, open at login, version and updates, help"></p>
+<p align="center"><img src="docs/img/settings-general.png" width="516" alt="General settings: click behavior, keyboard shortcut, open at login, version and updates, help"></p>
 
 - **Menu bar icon:** choose whether a click opens the menu or switches the mode.
 - **Keyboard shortcut:** ⌘⇧E by default. Choose ⌃⌥⌘E, ⌃⌥E, ⌃⌥⌘G, or none. If another app already uses the shortcut, the app says so right there, so you can pick a different one.
