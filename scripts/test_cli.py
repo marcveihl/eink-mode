@@ -11,6 +11,8 @@ import tempfile
 binary = str(pathlib.Path(sys.argv[1]).resolve())
 with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     env = dict(os.environ, EINK_HOME=directory, EINK_SIMULATED="1")
+    version = subprocess.run([binary, "version"], text=True, capture_output=True, timeout=15)
+    assert version.returncode == 0 and version.stdout.startswith("E-Ink Mode "), version
     def run(*args, good=True):
         result = subprocess.run([binary, *args], env=env, text=True, capture_output=True, timeout=15)
         assert (result.returncode == 0) == good, (args, result.stdout, result.stderr)
@@ -50,6 +52,24 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
             for future in futures: future.result()
         edited = run("config")
         assert edited["hideDock"] is False and edited["reduceMotion"] is True
+    # Temporary color lifts grayscale only, keeps the saved profile, and can be cancelled.
+    run("off"); run("set", "dock", "on"); run("set", "grayscale", "on")
+    before_color = run("config")
+    run("on")
+    colored = run("color", "5")
+    assert colored["system"]["values"]["grayscale"] == {"flag": {"_0": False}}
+    assert colored["system"]["values"]["dock"] == {"flag": {"_0": True}}
+    assert "colorUntil" in colored["state"]
+    assert run("config") == before_color
+    run("color", "0", good=False)
+    back = run("grayscale")
+    assert back["system"]["values"]["grayscale"] == {"flag": {"_0": True}} and "colorUntil" not in back["state"]
+    run("off")
+    run("color", good=False)  # requires an active session
+    assert run("off")["system"]["values"] == original
+    evening = run("set", "schedule", "evening")["configuration"]["schedule"]
+    assert evening == {"enabled": True, "on": 1260, "off": 420}
+    run("set", "schedule", "off")
     # A resumed process restores the durable journal left by a previous process.
     run("on")
     run("resume")
@@ -57,4 +77,4 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     assert run("off")["system"]["values"] == original
     pathlib.Path(directory, "state.json").write_text("corrupt")
     assert "Cannot read state.json" in run("on", good=False)
-print("CLI integration passed: settings, validation, restart recovery, concurrent mode commands and configuration edits, restoration")
+print("CLI integration passed: settings, validation, restart recovery, concurrent mode commands and configuration edits, temporary color, evening preset, restoration")

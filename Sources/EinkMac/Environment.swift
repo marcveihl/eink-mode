@@ -2,6 +2,10 @@ import Foundation
 import EinkCore
 
 public enum EinkEnvironment {
+    /// Marketing version from the app bundle (the CLI lives inside it); "dev" for unbundled builds.
+    public static var version: String {
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "dev"
+    }
     public static var directory: URL {
         if let path = ProcessInfo.processInfo.environment["EINK_HOME"] { return URL(fileURLWithPath: path) }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/E-Ink Mode")

@@ -1,26 +1,54 @@
-# Human QA
+# Release QA
 
-## Scope
+## Automated
 
-macOS MVP and the feature-note additions are included. Windows, custom palettes/dithering, app blocking, IDE themes, and other future PRD items remain outside this release, per the recommended implementation scope.
+`./scripts/test.sh` runs 47 core tests and process-level CLI tests against an isolated simulated system (`EINK_SIMULATED=1`). Coverage:
 
-## Automated checks
+- **Restoration:** exact per-display capture and restore, pre-existing accessibility settings, idempotent activation, partial failures and rollback, retry after restart, corrupt journal and config, restore with a damaged config, and never clearing settings the app didn't set.
+- **Temporary color:** lifts grayscale only, leaves the saved profile untouched, cancels early, expires on tick, catches up after sleep, clears when turned off, honors expiry across a crash and resume, and edits during color.
+- **First-run preview:** the one-off profile is never saved and restores exactly.
+- **Defaults:** a fresh install changes grayscale only.
+- **Schedule:** boundaries, DST skipped and repeated hours, catch-up, manual overrides across restarts, quit pausing versus logout resuming, and plain-language status (*tonight*, *this morning*, *tomorrow*, manual override).
+- **Updates:** semantic version and pre-release ordering, release feed selection (drafts, missing archives, invalid tags), and bundle swap with rollback when the replacement is missing.
+- **CLI:** settings, validation, concurrency (48 mode commands and concurrent edits), temporary color, the evening preset, `version`, and recovery.
 
-`./scripts/test.sh` runs public core tests and real-process CLI integration using an isolated simulated OS. Coverage includes pre-existing grayscale, separate display brightness, idempotent activation, independent grayscale, settings persistence, absent capabilities, failures/rollback/retry, corrupt journals, restart recovery, schedule boundaries, DST, catch-up, overrides, and concurrent commands.
+`./scripts/build.sh` builds a universal (arm64 + x86_64) app, verifies its signature, and writes the zip, checksum, and `install.sh`. Test the installer offline without touching a running copy:
 
-`./scripts/build.sh` compiles a release bundle and verifies its ad-hoc signature.
+```sh
+EINK_NO_LAUNCH=1 EINK_INSTALL_DIR=/tmp/apps LC_ALL=C bash dist/install.sh dist/E-Ink-Mode-*.zip
+```
 
-## On your Mac
+`EINK_SIMULATED=1 EINK_HOME=/tmp/qa ".../EinkBar" --qa-snapshots /tmp/shots` renders the welcome, settings, and menu screenshots for visual review.
 
-1. Click the ◐ icon. Settings should be readable directly in the dropdown. The primary toggle stays first.
-   - Enable **Click to flip**. Quick-click twice and verify mode toggles each time. Long press (half a second), right-click, and Control-click should open settings without toggling. Drag off the icon before releasing a quick press; it should do nothing. Relaunch and verify the preference persists; turn it off and confirm clicking opens settings again.
-2. Enable E-Ink Mode. Verify with your eyes that colored content becomes grayscale; API readback alone does not prove pixels changed.
-3. Turn Grayscale off while active. Confirm color returns while Dock/brightness settings stay active. Restore normal display and confirm the original state returns, including grayscale if it was already enabled before activation.
-4. Adjust brightness on a supported display, toggle Dock hiding and reduced transparency. Restore and check their original values. Unsupported controls should be disabled and explained under System availability.
-5. Press ⌘⇧E twice. Check the icon and display follow both toggles.
-6. Set schedule times a few minutes ahead, enable it, and wait through both boundaries. Manually override within a scheduled period; polling must not undo your choice. Sleep across a boundary, wake, and check catch-up.
-7. Enable Launch at login, approve in System Settings if macOS requests it, and test after your next login. Keep scheduling off to confirm launch itself does not activate the mode.
-8. Quit while active; verify restoration. Relaunch with an unfinished session to exercise Restore/Resume. Reconnect disconnected monitors if restoration asks for them.
-9. Change a setting with the CLI while the menu is open. It should appear within five seconds.
+## On a real Mac (before each release)
 
-The schedule and launch-at-login are left off for the initial handoff. A real reboot, physical sleep, visible grayscale output, and external-monitor behavior require human QA.
+Grayscale must be checked **with your eyes**. API readback doesn't prove pixels changed. Record your macOS version and displays.
+
+### Install and updates
+1. Fresh account or cleaned Mac: run the one-line installer. The app lands in Applications, opens, and the welcome guide appears.
+2. Unzip manually into Downloads and open it. *Open Anyway* is needed once. Accept **Move to Applications**. The app relaunches from Applications.
+3. Open the app again while it's running. No second icon appears; a hint points at the existing icon.
+4. Run an older build from another folder while the new one is running. The version-choice alert names both versions. **Use Version …** quits the other copy and restores the display.
+5. Publish a test release with a higher version. **Check Now** finds it, the menu shows *Update Available*, and **Install and Relaunch** restores, swaps, reopens, and turns back on if it was on. **Settings → Version** shows the new number.
+
+### First run
+6. The welcome window explains what will change. The preview runs 10 s, shows grayscale only, and returns to color. Closing the window mid-preview also returns to color.
+7. Leaving extras off changes grayscale only. Dock and brightness are untouched.
+
+### Everyday controls and temporary color
+8. The menu order matches the design: status, switch, color, schedule, customize, settings, then quit.
+9. **Color for 5 Minutes**: the countdown ticks live in the open menu, dimming and Dock stay, **Resume grayscale** works early, and expiry returns grayscale within about a second. Sleep past the expiry and wake: it's grayscale.
+10. Click-to-flip: a quick click toggles; long press, right-click, and Control-click open the menu; dragging off does nothing. The hint appears when you enable it.
+11. The shortcut switches from other apps. Choose each preset, then **None**. A conflicting shortcut shows the *already taken* message.
+
+### Schedule
+12. **Evening** preset: before 9 PM the menu shows *Turns on tonight at 9:00 PM*. Custom times a few minutes ahead: it turns on and off at the boundaries.
+13. A manual change during a scheduled period shows *Off/On by hand · resumes …*. Polling doesn't undo it.
+14. Sleep across a boundary and wake: it catches up. Log out and back in during the evening period (with **Open at login**): it's on again.
+
+### Restoration
+15. With brightness, Dock, and transparency enabled: **Quit and Restore Display** puts every value back.
+16. `kill <pid>` of EinkBar: the display is restored. `kill -9`, then relaunch: the recovery alert offers **Restore Display** / **Continue Session**.
+17. Grayscale already on before activation: still on after restore.
+18. External monitor: unplug while on, then turn off. The error names the display and the app stays open. Reconnect and **Restore Display** succeeds.
+19. Change a setting from the CLI while the app runs. The menu reflects it within 5 s.

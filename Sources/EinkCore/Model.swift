@@ -45,9 +45,10 @@ public struct Schedule: Codable, Equatable {
 }
 
 public struct Configuration: Codable, Equatable {
+    // Gentle defaults: grayscale only. Brightness and Dock changes are opt-in.
     public var grayscale = true
-    public var brightness: Double? = 0.35
-    public var hideDock = true
+    public var brightness: Double? = nil
+    public var hideDock = false
     public var reduceMotion = false
     public var reduceTransparency = false
     public var schedule = Schedule()
@@ -87,6 +88,8 @@ public struct RuntimeState: Codable {
     public var session: Session?
     public var manualUntilBoundary: Date?
     public var lastBoundary: Date?
+    /// While set and in the future, grayscale is lifted without changing the saved profile.
+    public var colorUntil: Date?
     public init() {}
 }
 
@@ -95,4 +98,8 @@ public struct Status: Codable {
     public var state: RuntimeState
     public var system: SystemSnapshot
     public var active: Bool { state.session != nil }
+    public func temporaryColorRemaining(now: Date = Date()) -> TimeInterval? {
+        guard active, let until = state.colorUntil, until > now else { return nil }
+        return until.timeIntervalSince(now)
+    }
 }

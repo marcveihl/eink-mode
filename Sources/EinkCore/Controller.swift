@@ -15,7 +15,8 @@ public final class Controller {
     public func status() throws -> Status {
         try store.locked { Status(configuration: try configuration(), state: try state(), system: try adapter.snapshot()) }
     }
-    public func setMode(_ active: Bool, manual: Bool = true, now: Date = Date()) throws {
+    /// `profile` activates with a one-off configuration (e.g. first-run preview) without saving it.
+    public func setMode(_ active: Bool, manual: Bool = true, profile: Configuration? = nil, now: Date = Date()) throws {
         try store.locked {
             var state = try state()
             // An intact restoration journal remains usable even if config is damaged.
@@ -28,12 +29,24 @@ public final class Controller {
                 try restore(state: &state)
                 return
             }
-            let config = try configuration()
+            let saved = try configuration()
+            if let profile { try profile.validate() }
             if manual {
-                state.manualUntilBoundary = config.schedule.enabled ? config.schedule.boundary(at: now, calendar: calendar).date : nil
+                state.manualUntilBoundary = saved.schedule.enabled ? saved.schedule.boundary(at: now, calendar: calendar).date : nil
                 try save(state)
             }
-            try transition(active, config: config, state: &state, now: now)
+            try transition(active, config: profile ?? saved, state: &state, now: now)
+        }
+    }
+    /// Restores the display for app exit. A deliberate quit pauses the schedule until its next change;
+    /// a logout/restart (`resumeScheduleOnLaunch`) lets the next launch catch up to the current period.
+    public func shutdown(resumeScheduleOnLaunch: Bool, now: Date = Date()) throws {
+        if !resumeScheduleOnLaunch { return try setMode(false, now: now) }
+        try store.locked {
+            var state = try state()
+            let wasActive = state.session != nil
+            try restore(state: &state)
+            if wasActive { state.lastBoundary = nil; state.manualUntilBoundary = nil; try save(state) }
         }
     }
     public func toggle(now: Date = Date()) throws {
@@ -67,13 +80,17 @@ public final class Controller {
         if previous.schedule != config.schedule {
             state.lastBoundary = nil; state.manualUntilBoundary = nil; try save(state)
         }
-        if state.session != nil { try apply(config, state: &state) }
+        if state.session != nil { try apply(config, state: &state, now: now) }
         if previous.schedule != config.schedule { try tick(config, state: &state, now: now) }
     }
     public func tick(now: Date = Date()) throws {
         try store.locked { var state = try state(); try tick(configuration(), state: &state, now: now) }
     }
     private func tick(_ config: Configuration, state: inout RuntimeState, now: Date) throws {
+        if let until = state.colorUntil, until <= now {
+            state.colorUntil = nil; try save(state)
+            if state.session != nil { try apply(config, state: &state, now: now) }
+        }
         guard config.schedule.enabled else { return }
         let boundary = config.schedule.boundary(at: now, calendar: calendar)
         if let held = state.manualUntilBoundary, held == boundary.date { return }
@@ -81,11 +98,30 @@ public final class Controller {
         try transition(boundary.active, config: config, state: &state, now: now)
         state.lastBoundary = boundary.date; state.manualUntilBoundary = nil; try save(state)
     }
-    public func resume() throws {
+    public func resume(now: Date = Date()) throws {
         try store.locked {
             var state = try state()
             guard state.session != nil else { return }
-            try apply(configuration(), state: &state)
+            if let until = state.colorUntil, until <= now { state.colorUntil = nil }
+            try apply(configuration(), state: &state, now: now)
+        }
+    }
+    /// Lifts grayscale for a while; every other profile setting stays applied and the saved profile is untouched.
+    public func startTemporaryColor(for duration: TimeInterval = 5 * 60, now: Date = Date()) throws {
+        try store.locked {
+            var state = try state(); let config = try configuration()
+            guard state.session != nil else { throw EinkError.message("Turn on E-Ink Mode first.") }
+            guard config.grayscale else { throw EinkError.message("Grayscale is already off in your profile.") }
+            state.colorUntil = now.addingTimeInterval(duration)
+            try apply(config, state: &state, now: now)
+        }
+    }
+    public func endTemporaryColor(now: Date = Date()) throws {
+        try store.locked {
+            var state = try state()
+            guard state.colorUntil != nil else { return }
+            state.colorUntil = nil; try save(state)
+            if state.session != nil { try apply(configuration(), state: &state, now: now) }
         }
     }
     private func transition(_ active: Bool, config: Configuration, state: inout RuntimeState, now: Date) throws {
@@ -95,7 +131,7 @@ public final class Controller {
             guard snapshot.values["grayscale"] != nil else { throw EinkError.message("Native grayscale is unavailable on this Mac.") }
             state.session = Session(started: now, original: snapshot.values, managed: [], phase: "applying")
             try save(state)
-            do { try apply(config, state: &state) }
+            do { try apply(config, state: &state, now: now) }
             catch {
                 let originalError = error
                 do { try restore(state: &state) }
@@ -114,10 +150,12 @@ public final class Controller {
         }
         return values.filter { original[$0.key] != nil }
     }
-    private func apply(_ config: Configuration, state: inout RuntimeState) throws {
+    private func apply(_ config: Configuration, state: inout RuntimeState, now: Date) throws {
         guard var session = state.session else { return }
         guard session.phase != "restoring" else { throw EinkError.message("Restore the unfinished session before changing settings.") }
-        let targets = desired(config, original: session.original)
+        var effective = config
+        if let until = state.colorUntil, until > now { effective.grayscale = false }
+        let targets = desired(effective, original: session.original)
         let keys = Set(targets.keys).union(session.managed).sorted()
         session.phase = "applying"
         session.managed = Array(Set(session.managed).union(targets.keys)).sorted()
@@ -138,6 +176,6 @@ public final class Controller {
             catch { failures.append("\(key): \(error.localizedDescription)") }
         }
         guard failures.isEmpty else { throw EinkError.message(failures.joined(separator: "\n")) }
-        state.session = nil; try save(state)
+        state.session = nil; state.colorUntil = nil; try save(state)
     }
 }

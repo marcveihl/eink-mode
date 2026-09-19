@@ -98,4 +98,17 @@ final class ScheduleTests: XCTestCase {
         XCTAssertTrue(try controller.status().active)
     }
 
+    func testQuitPausesScheduleButLogoutCatchesUpOnNextLaunch() throws {
+        try enable(at: date("2026-09-16T21:30:00-05:00"))
+        XCTAssertTrue(try controller.status().active)
+        try controller.shutdown(resumeScheduleOnLaunch: false, now: date("2026-09-16T22:00:00-05:00"))
+        try controller.tick(now: date("2026-09-16T22:05:00-05:00"))
+        XCTAssertFalse(try controller.status().active, "a deliberate quit holds until the next boundary")
+        try controller.setMode(true, now: date("2026-09-16T22:10:00-05:00"))
+        try controller.shutdown(resumeScheduleOnLaunch: true, now: date("2026-09-16T22:15:00-05:00"))
+        XCTAssertEqual(system.values["grayscale"], .flag(true), "FakeSystem starts grayscale; restored exactly")
+        XCTAssertFalse(try controller.status().active)
+        try controller.tick(now: date("2026-09-16T22:20:00-05:00"))
+        XCTAssertTrue(try controller.status().active, "after logout the schedule resumes on launch")
+    }
 }

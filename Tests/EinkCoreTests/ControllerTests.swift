@@ -20,6 +20,9 @@ final class ControllerTests: XCTestCase {
     override func setUp() {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         system = FakeSystem(); controller = Controller(store: Store(directory: directory), adapter: system)
+        // Opt in to the full profile these tests exercise; defaults are grayscale-only.
+        var config = Configuration(); config.brightness = 0.35; config.hideDock = true
+        try! controller.update(config)
     }
     override func tearDown() { try? FileManager.default.removeItem(at: directory) }
     func testRestoresExactPerDisplayAndPreexistingAccessibilityState() throws {
@@ -77,7 +80,8 @@ final class ControllerTests: XCTestCase {
         let original = system.values
         var config = Configuration(); config.brightness = .nan
         XCTAssertThrowsError(try controller.update(config))
-        XCTAssertEqual(try controller.status().configuration, Configuration())
+        var expected = Configuration(); expected.brightness = 0.35; expected.hideDock = true
+        XCTAssertEqual(try controller.status().configuration, expected)
         XCTAssertEqual(system.values, original)
     }
     func testCorruptStateRefusesMutation() throws {
