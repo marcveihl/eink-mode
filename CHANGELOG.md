@@ -9,6 +9,7 @@ Turns E-Ink Mode into a study focus system.
 - **Daily tracker and stats:** today's progress toward a daily goal (default 4, settable in Focus Stats or Settings), current and best streak, this week, all-time totals, best day, a 7-day chart, and an encouraging message based on where you are.
 - **Settings → Focus:** focus length, break length, sessions per round, daily goal, sound, and the menu bar countdown.
 - **Other options stay available mid-focus:** Color for 5 Minutes gives you a quick color peek, and the round's timer keeps running while you look.
+- **Wildcat mode** (Settings → General): swaps ◐ for an original wildcat-head icon, outlined when off, shaded in when on, and half-shaded while showing color. Go 'Cats!
 - **Robust by design:** rounds catch up after sleep; minutes from stopped sessions still count; a round started with E-Ink Mode off puts your display back when it ends; a round survives an app restart.
 - CLI: `eink focus [sessions]`, `eink focus stop|skip`, `eink stats`, `eink set focus-minutes|break-minutes|focus-sessions|daily-goal N`.
 

@@ -97,16 +97,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = item?.button else { return }
         let symbol: String, label: String
         var countdownText = ""
+        var wildcat: WildcatIcon.Style?
         if model.error != nil || model.needsRecovery { symbol = "exclamationmark.circle"; label = "E-Ink Mode needs attention" }
         else if let focus = model.focus {
+            wildcat = focus.phase == .rest || model.colorRemaining != nil ? .half : .filled
             symbol = focus.phase == .focus ? "timer" : "cup.and.saucer"
             label = MenuBuilder.focusLine(focus)
             if model.menuBarCountdown { countdownText = countdown(focus.remaining(now: Date())) }
         }
-        else if let left = model.colorRemaining { symbol = "circle.dotted"; label = "E-Ink Mode — color for \(countdown(left))" }
-        else if model.active { symbol = "circle.fill"; label = "E-Ink Mode is on" }
-        else { symbol = "circle.lefthalf.filled"; label = "E-Ink Mode is off" }
-        button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+        else if let left = model.colorRemaining { symbol = "circle.dotted"; label = "E-Ink Mode — color for \(countdown(left))"; wildcat = .half }
+        else if model.active { symbol = "circle.fill"; label = "E-Ink Mode is on"; wildcat = .filled }
+        else { symbol = "circle.lefthalf.filled"; label = "E-Ink Mode is off"; wildcat = .outline }
+        if model.wildcatMode, let wildcat { button.image = WildcatIcon.image(wildcat, accessibility: label) }
+        else { button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label) }
         button.title = countdownText
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         button.toolTip = label + (model.clickToFlip ? " — click to switch, right-click for menu" : "")
@@ -155,6 +158,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 let titles = self.menu.items.map(\.title).filter { !$0.isEmpty }
                 let open = NSApp.windows.contains { $0.isVisible && String(describing: type(of: $0)).contains("Menu") }
                 print("qa-verify-menu open=\(open) items=\(titles)")
+                if let frame = self.item.button?.window?.frame, let screen = NSScreen.screens.first {
+                    print("qa-status-item \(Int(frame.minX)),\(Int(screen.frame.maxY - frame.maxY)),\(Int(frame.width)),\(Int(frame.height))")
+                }
                 self.menu.cancelTracking()
                 DispatchQueue.main.async { self.terminating = true; NSApp.terminate(nil) }
             }

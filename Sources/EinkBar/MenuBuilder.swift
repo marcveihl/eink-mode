@@ -94,7 +94,7 @@ enum MenuBuilder {
         }
 
         menu.addItem(.separator())
-        if model.clickToFlip { note("Tip: click ◐ to switch · right-click for this menu") }
+        if model.clickToFlip { note("Tip: click the icon to switch · right-click for this menu") }
         _ = add("Quit and Restore Display", #selector(AppDelegate.quit), key: "q")
     }
 

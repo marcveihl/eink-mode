@@ -75,7 +75,7 @@ Click **◐** in the menu bar. The mode and the main switch come first, and ever
 | **Settings…** | Click behavior, keyboard shortcut, login, and updates. |
 | **Quit and Restore Display** | Puts everything back and closes the app. |
 
-The icon shows the state: **◐** off, **●** on, **◌** temporarily in color, a **timer** with a countdown while focusing, a **cup** on a break, and **!** when something needs your attention.
+The icon shows the state (or a wildcat head in [Wildcat mode](#settings)): **◐** off, **●** on, **◌** temporarily in color, a **timer** with a countdown while focusing, a **cup** on a break, and **!** when something needs your attention.
 
 **Prefer one click?** Turn on *Click the icon to switch* (in the welcome guide or **Settings → General**). A quick click then toggles E-Ink Mode, and **right-click**, **Control-click**, or **press and hold** opens the menu. A reminder appears at the bottom of the menu.
 
@@ -161,6 +161,11 @@ Everything beyond grayscale is optional and **off by default**. Changes apply im
 <p align="center"><img src="docs/img/settings-general.png" width="516" alt="General settings: click behavior, keyboard shortcut, open at login, version and updates, help"></p>
 
 - **Menu bar icon:** choose whether a click opens the menu or switches the mode.
+- **Wildcat mode:** swaps ◐ for a wildcat head. It's outlined when off, shaded in when on, and half-shaded while you're seeing color (a color peek or a focus break). The countdown still shows beside it during focus sessions. Go 'Cats!
+
+  <img src="docs/img/wildcat-icons.png" width="420" alt="Standard icons (half circle, filled circle, dotted circle) next to Wildcat mode icons (outlined, filled, and half-shaded wildcat heads) for off, on, and showing color">
+
+  *The wildcat is original artwork in the spirit of the Northwestern Wildcats. It isn't the official Willie the Wildcat mascot.*
 - **Keyboard shortcut:** ⌘⇧E by default. Choose ⌃⌥⌘E, ⌃⌥E, ⌃⌥⌘G, or none. If another app already uses the shortcut, the app says so right there, so you can pick a different one.
 - **Open E-Ink Mode at login:** needed for schedules. macOS may ask you to approve it in *System Settings → General → Login Items*.
 - **Updates:** shows your **version** and checks for new versions automatically. When an update is available, it also appears in the menu. **Install and Relaunch** restores your display, installs the update, and reopens the app, back on if it was on.

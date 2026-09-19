@@ -55,6 +55,7 @@ Grayscale must be checked **with your eyes**. API readback doesn't prove pixels 
 15d. Sleep mid-focus past the break and wake: the round catches up to the right phase.
 15f. Mid-focus **Color for 5 Minutes**: color appears, the focus countdown keeps running, and grayscale returns after the peek or on **Resume grayscale**. The item is hidden during breaks.
 15g. Change the daily goal with the Focus Stats stepper: the progress bar, message, and chart goal line update.
+15h. Settings → General → **Wildcat mode**: the menu bar icon becomes an outlined wildcat when off, filled when on or focusing, and half-shaded during color peeks and breaks. Check it in both light and dark menu bars. The countdown still shows beside it. Turn it off: ◐ returns.
 15e. Focus Stats updates after each completed session; the 7-day chart and streak look right; hovering a bar shows its values.
 
 ### Restoration

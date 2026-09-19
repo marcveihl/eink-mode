@@ -24,6 +24,10 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(clickToFlip, forKey: "clickToFlip"); changed?() }
     }
     @Published var stats: FocusStats?
+    /// Swaps the ◐ menu bar icon for a wildcat head.
+    @Published var wildcatMode = UserDefaults.standard.bool(forKey: "wildcatMode") {
+        didSet { UserDefaults.standard.set(wildcatMode, forKey: "wildcatMode"); changed?() }
+    }
     @Published var focusSound = UserDefaults.standard.object(forKey: "focusSound") as? Bool ?? true {
         didSet { UserDefaults.standard.set(focusSound, forKey: "focusSound") }
     }
