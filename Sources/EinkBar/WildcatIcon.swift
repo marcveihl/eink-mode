@@ -1,7 +1,19 @@
 import AppKit
 
+/// How shaded the menu bar icon is; both icon sets follow the same rule.
+/// Unshaded: your screen is in color (off). Shaded: grayscale (on or focusing). Half: temporary color (peek or break).
+enum IconShade {
+    case unshaded, shaded, half
+    /// The standard dot: ○ ● ◐
+    var symbol: String {
+        switch self { case .unshaded: return "circle"; case .shaded: return "circle.fill"; case .half: return "circle.lefthalf.filled" }
+    }
+    var wildcat: WildcatIcon.Style {
+        switch self { case .unshaded: return .outline; case .shaded: return .filled; case .half: return .half }
+    }
+}
+
 /// Wildcat mode: an original wildcat-head menu bar icon (not official mascot artwork).
-/// Filled when E-Ink Mode is on, outlined when off, half-shaded while showing color (like ◐).
 enum WildcatIcon {
     enum Style { case outline, filled, half }
 
@@ -40,7 +52,7 @@ enum WildcatIcon {
         case .half:
             context.restoreGState()
             draw(.outline, in: rect, color: color)
-            // Shade the left half solid, like ◐.
+            // Shade the left half solid, matching the half-filled dot.
             context.saveGState()
             context.clip(to: NSRect(x: rect.minX, y: rect.minY, width: rect.width / 2, height: rect.height))
             draw(.filled, in: rect, color: color)

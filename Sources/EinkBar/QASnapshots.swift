@@ -153,7 +153,7 @@ enum QASnapshots {
 
     /// Standard and wildcat menu bar icons side by side, as a menu bar would show them.
     private static func renderIconComparison(into folder: URL) {
-        let size = NSSize(width: 420, height: 128), scale: CGFloat = 2
+        let size = NSSize(width: 510, height: 128), scale: CGFloat = 2
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale), pixelsHigh: Int(size.height * scale),
                                          bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                          colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
@@ -163,13 +163,13 @@ enum QASnapshots {
         backdrop.setFill(); NSRect(origin: .zero, size: size).fill()
         let label: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12), .foregroundColor: NSColor(calibratedWhite: 0.4, alpha: 1)] // fixed ink: docs render the same in any appearance
         let heading: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 12), .foregroundColor: NSColor(calibratedWhite: 0.12, alpha: 1)]
-        let columns: [(String, String, WildcatIcon.Style)] = [("Off", "circle.lefthalf.filled", .outline), ("On", "circle.fill", .filled),
-                                                               ("Showing color", "circle.dotted", .half)]
-        for (row, name) in ["Standard", "Wildcat mode"].enumerated() {
+        let columns: [(String, String, WildcatIcon.Style)] = [("Color (off)", IconShade.unshaded), ("Grayscale (on)", .shaded),
+                                                               ("Temporary color", .half)].map { ($0.0, $0.1.symbol, $0.1.wildcat) }
+        for (row, name) in ["Dot (standard)", "Wildcat mode"].enumerated() {
             let y = size.height - 64 - CGFloat(row) * 46
             NSString(string: name).draw(at: NSPoint(x: 20, y: y + 3), withAttributes: heading)
             for (column, entry) in columns.enumerated() {
-                let x = 150 + CGFloat(column) * 95
+                let x = 170 + CGFloat(column) * 110
                 let bar = NSRect(x: x - 6, y: y - 5, width: 34, height: 30)
                 NSColor.white.withAlphaComponent(0.9).setFill(); NSBezierPath(roundedRect: bar, xRadius: 6, yRadius: 6).fill()
                 let icon = row == 0 ? NSImage(systemSymbolName: entry.1, accessibilityDescription: nil)!.withSymbolConfiguration(.init(pointSize: 15, weight: .regular))!
@@ -181,11 +181,11 @@ enum QASnapshots {
             }
         }
         for (column, entry) in columns.enumerated() {
-            NSString(string: entry.0).draw(at: NSPoint(x: 150 + CGFloat(column) * 95 - 6, y: size.height - 30), withAttributes: label)
+            NSString(string: entry.0).draw(at: NSPoint(x: 170 + CGFloat(column) * 110 - 6, y: size.height - 30), withAttributes: label)
         }
         NSGraphicsContext.restoreGraphicsState()
-        try? rep.representation(using: .png, properties: [:])?.write(to: folder.appendingPathComponent("wildcat-icons.png"))
-        print("snapshot wildcat-icons.png")
+        try? rep.representation(using: .png, properties: [:])?.write(to: folder.appendingPathComponent("menu-bar-icons.png"))
+        print("snapshot menu-bar-icons.png")
     }
 
     static let backdrop = NSColor(calibratedWhite: 0.93, alpha: 1)

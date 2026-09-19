@@ -204,7 +204,7 @@ struct GeneralSettings: View {
                         }.foregroundStyle(.secondary)
                     }
                 }
-                Hint("Swaps ◐ for a wildcat: outlined when off, shaded in when on, half-shaded while showing color. Go 'Cats!")
+                Hint("Swaps the dot for a wildcat. Both follow the same rule: unshaded in color, shaded in grayscale, half-shaded during temporary color. Go 'Cats!")
             }
             Section("Keyboard shortcut") {
                 Picker("Switch on and off", selection: Binding(get: { shortcut }, set: { shortcut = $0; actions.setShortcut($0) })) {

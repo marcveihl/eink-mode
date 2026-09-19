@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.0-beta.2 (Icon parity)
+
+- **One rule for the menu bar icon:** unshaded while your screen is in color (off), shaded while it's grayscale (on or focusing), and half-shaded during temporary color (a color peek or a focus break). The standard dot is now ○ / ● / ◐, and Wildcat mode matches it. Focus sessions no longer swap in timer or cup symbols; the countdown beside the icon shows a round is running.
+- Welcome guide, installer, and settings text point to ○ (filled ● when on).
+- README is more descriptive; step-by-step detail lives in the [user guide](docs/USER-GUIDE.md).
+
 ## 0.10.0-beta.1 (Focus sessions)
 
 Turns E-Ink Mode into a study focus system.

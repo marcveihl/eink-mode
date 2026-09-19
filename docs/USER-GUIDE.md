@@ -10,7 +10,7 @@ Detailed setup and controls for E-Ink Mode. For a quick overview, see the [READM
 curl -fsSL https://github.com/marcveihl/eink-mode/releases/latest/download/install.sh | bash
 ```
 
-The script downloads the latest version, checks it, quits any older copy (restoring your display first), moves the app into **Applications**, and opens it. Look for **◐** in the menu bar at the top-right of your screen.
+The script downloads the latest version, checks it, quits any older copy (restoring your display first), moves the app into **Applications**, and opens it. Look for **○** in the menu bar at the top-right of your screen. It fills in (**●**) while your screen is grayscale.
 
 <details>
 <summary><b>Prefer to download the zip yourself?</b></summary>
@@ -34,13 +34,13 @@ A short welcome guide explains what will change **before** anything changes.
 1. **What it does:** grayscale only. Your apps, files, and settings stay the same.
 2. **Try it first:** *Preview Grayscale for 10 Seconds* shows the effect and switches back on its own.
 3. **Optional extras:** dimming the screen and auto-hiding the Dock are **off** unless you tick them. Your current brightness and Dock setting are saved and put back.
-4. **Where to find it:** the ◐ icon in the menu bar. You can also choose to switch modes with a single click on the icon.
+4. **Where to find it:** the ○ icon in the menu bar. You can also choose to switch modes with a single click on the icon.
 
 Choose **Turn On E-Ink Mode**, or **Not Now** to decide later. You can reopen the guide any time from **Settings → General → Show Welcome Guide**.
 
 ## Everyday use
 
-Click **◐** in the menu bar. The mode and the main switch come first, and everything else sits below.
+Click the E-Ink Mode icon (**○** or **●**) in the menu bar. The mode and the main switch come first, and everything else sits below.
 
 <p align="center"><img src="img/menu-on.png" width="375" alt="Menu: E-Ink Mode · On, Turn Off, Color for 5 Minutes, Start Focus, Focus Stats…, today's progress, Schedule · Until 7:00 AM, Customize Appearance…, Settings…, Quit and Restore Display"></p>
 
@@ -56,7 +56,19 @@ Click **◐** in the menu bar. The mode and the main switch come first, and ever
 | **Settings…** | Click behavior, keyboard shortcut, login, and updates. |
 | **Quit and Restore Display** | Puts everything back and closes the app. |
 
-The icon shows the state (or a wildcat head in [Wildcat mode](#settings)): **◐** off, **●** on, **◌** temporarily in color, a **timer** with a countdown while focusing, a **cup** on a break, and **!** when something needs your attention.
+### Reading the icon
+
+The icon's shading tells you what your screen is doing. The same rule applies to the standard dot and to the wildcat in [Wildcat mode](#settings):
+
+| Icon | Dot | Wildcat | Your screen |
+|---|---|---|---|
+| **Unshaded** | ○ | outlined | In color. E-Ink Mode is off. |
+| **Shaded** | ● | filled | Grayscale. E-Ink Mode is on, or you're in a focus session. |
+| **Half-shaded** | ◐ | half-filled | Temporary color: a **Color for 5 Minutes** peek or a focus break. Grayscale comes back on its own. |
+
+<p align="center"><img src="img/menu-bar-icons.png" width="510" alt="Icon states. Dot: empty circle for color (off), filled circle for grayscale (on), half-filled circle for temporary color. Wildcat mode: outlined, filled, and half-filled wildcat heads for the same states."></p>
+
+During a focus round, a countdown (for example **● 18:30**) sits next to the icon; you can hide it in **Settings → Focus**. When something needs your attention, a **warning icon** replaces the dot or wildcat until you deal with it.
 
 **Prefer one click?** Turn on *Click the icon to switch* (in the welcome guide or **Settings → General**). A quick click then toggles E-Ink Mode, and **right-click**, **Control-click**, or **press and hold** opens the menu. A reminder appears at the bottom of the menu.
 
@@ -73,7 +85,7 @@ Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus 
   <img src="img/menu-break.png" width="375" alt="Menu on a break: Break · 4:30 left, then focus 3 of 4, Skip Break, Stop Focus Session">
 </p>
 
-- **Always know where you are.** The menu bar shows a live countdown (⏱ 18:30), and the menu says *Focus 1 of 4 · 18:30 left* or *Break · 4:30 left, then focus 3 of 4*.
+- **Always know where you are.** The menu bar shows a live countdown beside the icon (● 18:30 while focusing, ◐ 4:30 on a break), and the menu says *Focus 1 of 4 · 18:30 left* or *Break · 4:30 left, then focus 3 of 4*.
 - **Gentle cues.** A soft sound and a short note under the icon mark each switch between focus and break. You can turn both off.
 - **Everything stays within reach.** Your other options still work mid-focus: **Color for 5 Minutes** gives you a quick color peek, and the focus timer keeps running while you look. Schedule, Customize Appearance, and Settings are all still in the menu.
 
@@ -142,9 +154,7 @@ Everything beyond grayscale is optional and **off by default**. Changes apply im
 <p align="center"><img src="img/settings-general.png" width="516" alt="General settings: click behavior, keyboard shortcut, open at login, version and updates, help"></p>
 
 - **Menu bar icon:** choose whether a click opens the menu or switches the mode.
-- **Wildcat mode:** swaps ◐ for a wildcat head. It's outlined when off, shaded in when on, and half-shaded while you're seeing color (a color peek or a focus break). The countdown still shows beside it during focus sessions. Go 'Cats!
-
-  <img src="img/wildcat-icons.png" width="420" alt="Standard icons (half circle, filled circle, dotted circle) next to Wildcat mode icons (outlined, filled, and half-shaded wildcat heads) for off, on, and showing color">
+- **Wildcat mode:** swaps the dot for a wildcat head. The shading is the same: outlined in color, filled in grayscale, half-filled during temporary color ([Reading the icon](#reading-the-icon)). The countdown still shows beside it during focus sessions. Go 'Cats!
 
   *The wildcat is original artwork in the spirit of the Northwestern Wildcats. It isn't the official Willie the Wildcat mascot.*
 - **Keyboard shortcut:** ⌘⇧E by default. Choose ⌃⌥⌘E, ⌃⌥E, ⌃⌥⌘G, or none. If another app already uses the shortcut, the app says so right there, so you can pick a different one.
@@ -227,6 +237,6 @@ eink set schedule evening|on|off
 eink set schedule-on|schedule-off HH:MM
 ```
 
-`EINK_HOME` selects an isolated state directory, and `EINK_SIMULATED=1` changes a simulated system instead of your display. `EinkBar --qa-snapshots <dir>` (simulated only) renders the screenshots in this README.
+`EINK_HOME` selects an isolated state directory, and `EINK_SIMULATED=1` changes a simulated system instead of your display. `EinkBar --qa-snapshots <dir>` (simulated only) renders the screenshots in the README and this guide.
 
 More: [beta testing guide](BETA-TESTING.md) · [QA checklist](QA.md) · [changelog](../CHANGELOG.md) · [original PRD](PRD.md) · [implementation scope](IMPLEMENTATION.md). The first prototype is preserved in `prototype0/`.

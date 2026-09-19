@@ -51,8 +51,8 @@ struct OnboardingView: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             step(4, "Where to find it") {
-                Text("Look for ◐ at the top-right of your screen, in the menu bar. Click it for the menu.")
-                Toggle("Click ◐ to switch on and off instead (right-click for the menu)", isOn: $model.clickToFlip)
+                Text("Look for ○ at the top-right of your screen, in the menu bar. It fills in (●) while your screen is grayscale. Click it for the menu.")
+                Toggle("Click the icon to switch on and off instead (right-click for the menu)", isOn: $model.clickToFlip)
                 if let shortcutSymbol { Text("Or press \(shortcutSymbol) from any app.").foregroundStyle(.secondary) }
                 Text("Studying? Choose Start Focus in the menu: grayscale focus sessions with color breaks in between.")
                     .font(.caption).foregroundStyle(.secondary)
