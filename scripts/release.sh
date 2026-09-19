@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 VERSION="$(tr -d '[:space:]' < VERSION)"
 REPO="${EINK_REPO:-marcveihl/eink-mode}"
 TAG="v$VERSION"
-[ -z "$(git status --porcelain)" ] || { echo "Commit your changes first." >&2; exit 1; }
+[ -z "$(git status --porcelain --untracked-files=no)" ] || { echo "Commit your changes first." >&2; exit 1; }
 gh release view "$TAG" --repo "$REPO" >/dev/null 2>&1 && { echo "$TAG already exists. Bump VERSION." >&2; exit 1; }
 ./scripts/test.sh
 ./scripts/build.sh
