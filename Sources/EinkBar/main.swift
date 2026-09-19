@@ -25,6 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var hint: NSPopover?
     private var signalSources: [DispatchSourceSignal] = []
     private var simulated: Bool { ProcessInfo.processInfo.environment["EINK_SIMULATED"] == "1" }
+    /// How long the icon must be held before the menu opens instead of switching the mode.
+    /// Well above the system's 0.5 s long press: with click-to-flip on, a deliberate click is the
+    /// everyday action and must not lose to a slightly slow finger. Right-click and Control-click
+    /// still open the menu at once, so nobody waits for it.
+    private let longPressSeconds = 0.9
+    /// How far the pointer may drift off the icon and still count as being on it. A tap on a
+    /// trackpad often slides a few points; only a deliberate move away should cancel the switch.
+    private let pointerSlack: CGFloat = 10
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let snapshotDirectory = argument("--qa-snapshots")
@@ -51,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.changed = { [weak self] in
             guard let self else { return }
             self.refreshIcon()
-            if self.model.clickToFlip && !wasFlipping { self.showHint("Click the icon to switch E-Ink Mode.\nRight-click or hold for the menu.") }
+            if self.model.clickToFlip && !wasFlipping { self.showHint("Click the icon to switch E-Ink Mode.\nRight-click, or hold it for a second, for the menu.") }
             wasFlipping = self.model.clickToFlip
             if !self.launchHandled, self.model.status != nil { self.launchHandled = true; self.lastFocus = self.model.focus; self.handleLaunch() }
             else { self.announceFocusChanges() }
@@ -121,16 +129,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .leftMouseDown:
             pressTimer?.invalidate(); handledPress = false
             if event.modifierFlags.contains(.control) || !model.clickToFlip { handledPress = true; showMenu(); return }
-            let timer = Timer(timeInterval: 0.5, repeats: false) { [weak self] _ in
+            let timer = Timer(timeInterval: longPressSeconds, repeats: false) { [weak self] _ in
                 guard let self else { return }
                 self.handledPress = true
-                if self.pointerIsOverButton { self.showMenu() }
+                if self.pointerIsOverButton() { self.showMenu() }
             }
             pressTimer = timer
             RunLoop.main.add(timer, forMode: .common) // status buttons track the mouse in a separate run-loop mode
         case .leftMouseUp:
             pressTimer?.invalidate(); pressTimer = nil
-            guard !handledPress, pointerIsOverButton else { return }
+            guard !handledPress, pointerIsOverButton() else { return }
             if model.needsRecovery || model.status == nil || model.error != nil { showMenu() } else { model.toggle() }
         case .rightMouseUp:
             pressTimer?.invalidate(); pressTimer = nil; handledPress = true
@@ -139,10 +147,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             showMenu() // keyboard and accessibility activation
         }
     }
-    private var pointerIsOverButton: Bool {
+    private func pointerIsOverButton() -> Bool {
         guard let button = item?.button, let window = button.window else { return false }
         let point = window.convertPoint(fromScreen: NSEvent.mouseLocation)
-        return button.bounds.contains(button.convert(point, from: nil))
+        return button.bounds.insetBy(dx: -pointerSlack, dy: -pointerSlack).contains(button.convert(point, from: nil))
     }
     @objc func showMenu() {
         guard let item else { return }

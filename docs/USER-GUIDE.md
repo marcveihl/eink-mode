@@ -71,7 +71,7 @@ The icon's shading tells you what your screen is doing. The same rule applies to
 
 During a focus round, a countdown (for example **● 18:30**) sits next to the icon; you can hide it in **Settings → Focus**. When something needs your attention, a **warning icon** replaces the dot or wildcat until you deal with it.
 
-**Prefer one click?** Turn on *Click the icon to switch* (in the welcome guide or **Settings → General**). A quick click then toggles E-Ink Mode, and **right-click**, **Control-click**, or **press and hold** opens the menu. A reminder appears at the bottom of the menu.
+**Prefer one click?** Turn on *Click the icon to switch* (in the welcome guide or **Settings → General**). A click then toggles E-Ink Mode — take as long over it as you like, since the menu only opens if you hold the icon for about a second. **Right-click** and **Control-click** open the menu straight away. A reminder appears at the bottom of the menu.
 
 ## Focus sessions and daily stats
 

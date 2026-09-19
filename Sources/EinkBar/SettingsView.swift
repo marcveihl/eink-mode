@@ -192,7 +192,7 @@ struct GeneralSettings: View {
         Form {
             Section("Menu bar icon") {
                 Toggle("Click the icon to switch E-Ink Mode on and off", isOn: $model.clickToFlip)
-                Hint(model.clickToFlip ? "Click the icon to switch. Right-click, Control-click, or press and hold to open the menu."
+                Hint(model.clickToFlip ? "Click the icon to switch. Right-click or Control-click for the menu, or hold the icon for a second."
                                        : "Click the icon to open the menu.")
                 Toggle(isOn: $model.wildcatMode) {
                     HStack(spacing: 10) {

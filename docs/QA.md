@@ -41,7 +41,7 @@ Grayscale must be checked **with your eyes**. API readback doesn't prove pixels 
 ### Everyday controls and temporary color
 8. The menu order matches the design: status, switch, color, schedule, customize, settings, then quit.
 9. **Color for 5 Minutes**: the countdown ticks live in the open menu, dimming and Dock stay, **Resume grayscale** works early, and expiry returns grayscale within about a second. Sleep past the expiry and wake: it's grayscale.
-10. Click-to-flip: a quick click toggles; long press, right-click, and Control-click open the menu; dragging off does nothing. The hint appears when you enable it.
+10. Click-to-flip: a quick click toggles, including a slow, deliberate one — the menu only takes over after holding for about a second. Right-click and Control-click open the menu at once. A tap that slides a few points still switches; dragging well away from the icon does nothing. The hint appears when you enable it.
 11. The shortcut switches from other apps. Choose each preset, then **None**. A conflicting shortcut shows the *already taken* message.
 
 ### Keep display awake
