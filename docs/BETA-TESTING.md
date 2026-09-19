@@ -4,7 +4,7 @@ Thanks for trying E-Ink Mode! This takes about **20 minutes**. Please don't read
 
 **You need:** a Mac running macOS 13 Ventura or newer. An external monitor is a bonus.
 
-**Safety net:** everything the app changes can be undone. If anything looks stuck, choose **Quit and Restore Display** from the ◐ menu. As a last resort, run this in Terminal:
+**Safety net:** everything the app changes can be undone. If anything looks stuck, choose **Quit and Restore Display** from the E-Ink Mode menu (the ○ / ● icon in the menu bar). As a last resort, run this in Terminal:
 `"/Applications/E-Ink Mode.app/Contents/MacOS/eink" off`
 
 ## 1. Install (≈2 min)
@@ -15,7 +15,7 @@ Open Terminal, paste, and press Return:
 curl -fsSL https://github.com/marcveihl/eink-mode/releases/latest/download/install.sh | bash
 ```
 
-*Note for yourself:* Was anything confusing? Did you find the ◐ icon without help?
+*Note for yourself:* Was anything confusing? Did you find the ○ icon without help?
 
 ## 2. First minute (≈3 min)
 
@@ -28,7 +28,7 @@ Follow the welcome window.
 
 - Turn E-Ink Mode **on and off** from the menu, then with **⌘⇧E**.
 - Choose **Color for 5 Minutes**. Watch the countdown in the menu, then choose **Resume grayscale** early. Try it again, and let it expire on its own.
-- In **Settings → General**, turn on **Click the icon to switch**. Click ◐ a few times, then right-click it.
+- In **Settings → General**, turn on **Click the icon to switch**. Click the icon a few times, then right-click it.
 
 ## 4. Schedule (≈2 min)
 

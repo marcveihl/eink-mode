@@ -51,7 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         model.changed = { [weak self] in
             guard let self else { return }
             self.refreshIcon()
-            if self.model.clickToFlip && !wasFlipping { self.showHint("Click ◐ to switch E-Ink Mode.\nRight-click or hold for the menu.") }
+            if self.model.clickToFlip && !wasFlipping { self.showHint("Click the icon to switch E-Ink Mode.\nRight-click or hold for the menu.") }
             wasFlipping = self.model.clickToFlip
             if !self.launchHandled, self.model.status != nil { self.launchHandled = true; self.lastFocus = self.model.focus; self.handleLaunch() }
             else { self.announceFocusChanges() }
@@ -95,21 +95,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshIcon() {
         guard let button = item?.button else { return }
-        let symbol: String, label: String
+        let shade: IconShade?, label: String
         var countdownText = ""
-        var wildcat: WildcatIcon.Style?
-        if model.error != nil || model.needsRecovery { symbol = "exclamationmark.circle"; label = "E-Ink Mode needs attention" }
+        if model.error != nil || model.needsRecovery { shade = nil; label = "E-Ink Mode needs attention" }
         else if let focus = model.focus {
-            wildcat = focus.phase == .rest || model.colorRemaining != nil ? .half : .filled
-            symbol = focus.phase == .focus ? "timer" : "cup.and.saucer"
+            // Same shading as everywhere else; the countdown beside the icon shows a round is running.
+            shade = focus.phase == .rest || model.colorRemaining != nil ? .half : .shaded
             label = MenuBuilder.focusLine(focus)
             if model.menuBarCountdown { countdownText = countdown(focus.remaining(now: Date())) }
         }
-        else if let left = model.colorRemaining { symbol = "circle.dotted"; label = "E-Ink Mode — color for \(countdown(left))"; wildcat = .half }
-        else if model.active { symbol = "circle.fill"; label = "E-Ink Mode is on"; wildcat = .filled }
-        else { symbol = "circle.lefthalf.filled"; label = "E-Ink Mode is off"; wildcat = .outline }
-        if model.wildcatMode, let wildcat { button.image = WildcatIcon.image(wildcat, accessibility: label) }
-        else { button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label) }
+        else if let left = model.colorRemaining { shade = .half; label = "E-Ink Mode — color for \(countdown(left))" }
+        else if model.active { shade = .shaded; label = "E-Ink Mode is on" }
+        else { shade = .unshaded; label = "E-Ink Mode is off" }
+        if let shade, model.wildcatMode { button.image = WildcatIcon.image(shade.wildcat, accessibility: label) }
+        else { button.image = NSImage(systemSymbolName: shade?.symbol ?? "exclamationmark.circle", accessibilityDescription: label) }
         button.title = countdownText
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         button.toolTip = label + (model.clickToFlip ? " — click to switch, right-click for menu" : "")

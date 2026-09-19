@@ -55,4 +55,4 @@ rm -rf "$dest/$APP_NAME"
 mv "$work/unpacked/$APP_NAME" "$dest/$APP_NAME"
 xattr -dr com.apple.quarantine "$dest/$APP_NAME" 2>/dev/null || true
 [ "${EINK_NO_LAUNCH:-}" = 1 ] || open "$dest/$APP_NAME"
-say "Done. Look for ◐ in your menu bar (top-right of the screen)."
+say "Done. Look for the ○ icon in your menu bar (top-right of the screen)."

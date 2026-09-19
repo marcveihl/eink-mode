@@ -24,7 +24,7 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(clickToFlip, forKey: "clickToFlip"); changed?() }
     }
     @Published var stats: FocusStats?
-    /// Swaps the ◐ menu bar icon for a wildcat head.
+    /// Swaps the dot menu bar icon for a wildcat head.
     @Published var wildcatMode = UserDefaults.standard.bool(forKey: "wildcatMode") {
         didSet { UserDefaults.standard.set(wildcatMode, forKey: "wildcatMode"); changed?() }
     }
