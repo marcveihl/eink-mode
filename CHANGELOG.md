@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0-beta.3 (Keep display awake)
+
+- **Keep Display Awake** in the menu (and **Settings → General → Display sleep**): while it's checked, the display won't sleep and the screen saver won't start, whether or not E-Ink Mode is on. Useful for reading a long page without touching the keyboard.
+- It lasts until you switch it off and is remembered for the next launch. macOS ties the hold to the running app, so quitting, logging out, or a crash releases it — nothing is left behind. Closing the lid still sleeps the Mac.
+
 ## 0.10.0-beta.2 (Icon parity)
 
 - **One rule for the menu bar icon:** unshaded while your screen is in color (off), shaded while it's grayscale (on or focusing), and half-shaded during temporary color (a color peek or a focus break). The standard dot is now ○ / ● / ◐, and Wildcat mode matches it. Focus sessions no longer swap in timer or cup symbols; the countdown beside the icon shows a round is running.

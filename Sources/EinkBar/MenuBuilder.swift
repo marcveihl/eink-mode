@@ -9,7 +9,7 @@ struct LiveMenuItems {
 
 /// Builds the status menu:
 ///   E-Ink Mode · On / Turn off / Color for 5 minutes
-///   Schedule · Until 7:00 AM / Customize appearance… / Settings…
+///   Keep Display Awake / Schedule · Until 7:00 AM / Customize appearance… / Settings…
 ///   Quit and restore display
 enum MenuBuilder {
     static func build(_ menu: NSMenu, model: AppModel, target: AnyObject, live: inout LiveMenuItems) {
@@ -82,6 +82,10 @@ enum MenuBuilder {
         }
 
         menu.addItem(.separator())
+        let awake = add("Keep Display Awake", #selector(AppDelegate.toggleKeepAwake))
+        awake.state = model.keepAwake ? .on : .off
+        awake.toolTip = "Stops the display sleeping and the screen saver starting. Quitting always releases it."
+        if model.keepAwake { note("Your display stays on until you switch this off.") }
         if let summary = model.schedule {
             let schedule = add("Schedule · \(summary.short)", nil)
             schedule.isEnabled = true

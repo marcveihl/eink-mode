@@ -2,7 +2,7 @@
 
 ## Automated
 
-`./scripts/test.sh` runs 66 core tests and process-level CLI tests against an isolated simulated system (`EINK_SIMULATED=1`). Coverage:
+`./scripts/test.sh` runs 68 core tests and process-level CLI tests against an isolated simulated system (`EINK_SIMULATED=1`). Coverage:
 
 - **Restoration:** exact per-display capture and restore, pre-existing accessibility settings, idempotent activation, partial failures and rollback, retry after restart, corrupt journal and config, restore with a damaged config, and never clearing settings the app didn't set.
 - **Temporary color:** lifts grayscale only, leaves the saved profile untouched, cancels early, expires on tick, catches up after sleep, clears when turned off, honors expiry across a crash and resume, and edits during color.
@@ -11,6 +11,7 @@
 - **Schedule:** boundaries, DST skipped and repeated hours, catch-up, manual overrides across restarts, quit pausing versus logout resuming, and plain-language status (*tonight*, *this morning*, *tomorrow*, manual override).
 - **Focus sessions:** grayscale focus and color breaks, the rest of the profile kept, round completion and ownership of the mode, catch-up across several phases after sleep, stopping early with credited minutes, turning off mid-round, skipping breaks, color peeks mid-focus that keep the timer running (and are refused on breaks), a daily goal that defaults to 4 and can be changed, the schedule deferring to a round, settings edits not disrupting a round, surviving a restart, validation, and old config files without focus settings.
 - **Stats:** streaks from today or yesterday, gaps, best streak, week labels, totals, best day, days the goal was met, and each motivational message.
+- **Keep display awake:** the power assertion is registered with macOS while held and gone once released; repeating a hold or a release is a no-op.
 - **Updates:** semantic version and pre-release ordering, release feed selection (drafts, missing archives, invalid tags), and bundle swap with rollback when the replacement is missing.
 - **CLI:** settings, validation, concurrency (48 mode commands and concurrent edits), temporary color, the evening preset, `version`, and recovery.
 
@@ -42,6 +43,11 @@ Grayscale must be checked **with your eyes**. API readback doesn't prove pixels 
 9. **Color for 5 Minutes**: the countdown ticks live in the open menu, dimming and Dock stay, **Resume grayscale** works early, and expiry returns grayscale within about a second. Sleep past the expiry and wake: it's grayscale.
 10. Click-to-flip: a quick click toggles; long press, right-click, and Control-click open the menu; dragging off does nothing. The hint appears when you enable it.
 11. The shortcut switches from other apps. Choose each preset, then **None**. A conflicting shortcut shows the *already taken* message.
+
+### Keep display awake
+11a. Set **System Settings → Lock Screen → Turn display off** to 1 minute. Choose **Keep Display Awake**: `pmset -g assertions` lists *PreventUserIdleDisplaySleep* named for E-Ink Mode, and the display stays on past a minute of no input. The menu shows a checkmark and the line *Your display stays on until you switch this off*.
+11b. Switch it off: the assertion disappears from `pmset -g assertions` and the display sleeps on schedule again. Switch it on, quit the app, and check `pmset` again — quitting releases it.
+11c. With it on, quit and reopen the app: the checkmark is back and the assertion is held again. Closing the lid still sleeps the Mac.
 
 ### Schedule
 12. **Evening** preset: before 9 PM the menu shows *Turns on tonight at 9:00 PM*. Custom times a few minutes ahead: it turns on and off at the boundaries.

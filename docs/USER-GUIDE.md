@@ -42,7 +42,7 @@ Choose **Turn On E-Ink Mode**, or **Not Now** to decide later. You can reopen th
 
 Click the E-Ink Mode icon (**○** or **●**) in the menu bar. The mode and the main switch come first, and everything else sits below.
 
-<p align="center"><img src="img/menu-on.png" width="375" alt="Menu: E-Ink Mode · On, Turn Off, Color for 5 Minutes, Start Focus, Focus Stats…, today's progress, Schedule · Until 7:00 AM, Customize Appearance…, Settings…, Quit and Restore Display"></p>
+<p align="center"><img src="img/menu-on.png" width="375" alt="Menu: E-Ink Mode · On, Turn Off, Color for 5 Minutes, Start Focus, Focus Stats…, today's progress, Keep Display Awake, Schedule, Customize Appearance…, Settings…, Quit and Restore Display"></p>
 
 | Menu item | What it does |
 |---|---|
@@ -51,9 +51,10 @@ Click the E-Ink Mode icon (**○** or **●**) in the menu bar. The mode and the
 | **Color for 5 Minutes** | Brings color back briefly, then returns to grayscale by itself. |
 | **Start Focus · 4 × 25 min** | Starts a round of focus sessions with color breaks ([below](#focus-sessions-and-daily-stats)). |
 | **Focus Stats…** | Your daily tracker. The line below it shows today's count and your streak. |
+| **Keep Display Awake** | Stops the display sleeping while it's checked ([below](#keep-display-awake)). |
 | **Schedule · …** | What the schedule will do next, such as *Until 7:00 AM* or *Turns on tonight at 9:00 PM*. |
 | **Customize Appearance…** | Grayscale, dimming, Dock, motion, and transparency. |
-| **Settings…** | Click behavior, keyboard shortcut, login, and updates. |
+| **Settings…** | Click behavior, display sleep, keyboard shortcut, login, and updates. |
 | **Quit and Restore Display** | Puts everything back and closes the app. |
 
 ### Reading the icon
@@ -121,6 +122,14 @@ Checking a photo, a chart, or a color-coded calendar? Choose **Color for 5 Minut
 
 When time is up, grayscale returns automatically, even if your Mac was asleep in the meantime. Your saved settings are never changed by temporary color.
 
+## Keep display awake
+
+Reading a long page without touching the keyboard? Choose **Keep Display Awake** in the menu. While it's checked, your display won't sleep and the screen saver won't start, whether or not E-Ink Mode itself is on. The same switch is in **Settings → General → Display sleep**.
+
+- **It lasts until you switch it off.** The menu keeps a checkmark beside it and says *Your display stays on until you switch this off.* Your choice is remembered the next time the app opens.
+- **Quitting always releases it.** macOS ties the hold to the running app, so quitting, logging out, or even a crash hands display sleep straight back to your energy settings — nothing to undo.
+- **It doesn't override everything.** Closing the lid, choosing Sleep, or your Mac's own display-off shortcut still work as usual. On battery, expect a shorter charge while it's on.
+
 ## Evening schedule
 
 Let E-Ink Mode turn on in the evening and off in the morning. Pick **Schedule → Evening · 9:00 PM – 7:00 AM** from the menu, or choose your own times in **Settings → Schedule**.
@@ -151,12 +160,13 @@ Everything beyond grayscale is optional and **off by default**. Changes apply im
 
 ## Settings
 
-<p align="center"><img src="img/settings-general.png" width="516" alt="General settings: click behavior, keyboard shortcut, open at login, version and updates, help"></p>
+<p align="center"><img src="img/settings-general.png" width="516" alt="General settings: click behavior, wildcat mode, keep the display awake, keyboard shortcut, open at login, version and updates, help"></p>
 
 - **Menu bar icon:** choose whether a click opens the menu or switches the mode.
 - **Wildcat mode:** swaps the dot for a wildcat head. The shading is the same: outlined in color, filled in grayscale, half-filled during temporary color ([Reading the icon](#reading-the-icon)). The countdown still shows beside it during focus sessions. Go 'Cats!
 
   *The wildcat is original artwork in the spirit of the Northwestern Wildcats. It isn't the official Willie the Wildcat mascot.*
+- **Display sleep:** *Keep the display awake* is the same switch as **Keep Display Awake** in the menu ([above](#keep-display-awake)).
 - **Keyboard shortcut:** ⌘⇧E by default. Choose ⌃⌥⌘E, ⌃⌥E, ⌃⌥⌘G, or none. If another app already uses the shortcut, the app says so right there, so you can pick a different one.
 - **Open E-Ink Mode at login:** needed for schedules. macOS may ask you to approve it in *System Settings → General → Login Items*.
 - **Updates:** shows your **version** and checks for new versions automatically. When an update is available, it also appears in the menu. **Install and Relaunch** restores your display, installs the update, and reopens the app, back on if it was on.

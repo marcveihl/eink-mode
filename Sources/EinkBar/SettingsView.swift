@@ -206,6 +206,10 @@ struct GeneralSettings: View {
                 }
                 Hint("Swaps the dot for a wildcat. Both follow the same rule: unshaded in color, shaded in grayscale, half-shaded during temporary color. Go 'Cats!")
             }
+            Section("Display sleep") {
+                Toggle("Keep the display awake", isOn: Binding(get: { model.keepAwake }, set: model.setKeepAwake))
+                Hint("Stops the display sleeping and the screen saver starting — useful while reading. Also in the menu. It lasts until you switch it off; quitting E-Ink Mode releases it. On battery, expect a shorter charge.")
+            }
             Section("Keyboard shortcut") {
                 Picker("Switch on and off", selection: Binding(get: { shortcut }, set: { shortcut = $0; actions.setShortcut($0) })) {
                     ForEach(Shortcut.presets) { Text($0.symbol).tag($0.id) }

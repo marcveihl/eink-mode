@@ -111,7 +111,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         else { button.image = NSImage(systemSymbolName: shade?.symbol ?? "exclamationmark.circle", accessibilityDescription: label) }
         button.title = countdownText
         button.font = NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
-        button.toolTip = label + (model.clickToFlip ? " — click to switch, right-click for menu" : "")
+        button.toolTip = label + (model.keepAwake ? " — display staying awake" : "")
+            + (model.clickToFlip ? " — click to switch, right-click for menu" : "")
     }
 
     @objc private func statusItemPressed() {
@@ -238,6 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         showHint(message)
     }
     @objc func endColor() { model.endColor() }
+    @objc func toggleKeepAwake() { model.setKeepAwake(!model.keepAwake) }
     @objc func restoreDisplay() { model.restoreDisplay() }
     @objc func resumeSession() { model.recover(resume: true) }
     @objc func showError() { if let error = model.error { presentError(error) } }
@@ -390,6 +392,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             do {
                 try model.controller.shutdown(resumeScheduleOnLaunch: poweringOff)
                 terminating = true; pollTimer?.invalidate(); secondTimer?.invalidate(); hotkeys?.unregister()
+                DisplayAwake.shared.hold(false)
                 return .terminateNow
             } catch {
                 let alert = NSAlert(); alert.alertStyle = .critical
