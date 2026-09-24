@@ -17,6 +17,7 @@ final class AppModel: ObservableObject {
     @Published var needsRecovery = false
     @Published var loginEnabled = false
     @Published var hotkeyMessage = ""
+    @Published var holdHotkeyMessage = ""
     @Published var update: UpdateState = .idle
     /// Seconds left in the first-run preview, while it runs.
     @Published var previewRemaining: Int?
@@ -52,6 +53,7 @@ final class AppModel: ObservableObject {
 
     var active: Bool { status?.active == true }
     var colorRemaining: TimeInterval? { status?.temporaryColorRemaining() }
+    var holdingColor: Bool { status?.holdColorActive == true }
     var focus: FocusSession? { status?.focusing == true ? status?.state.focus : nil }
     var focusSettings: FocusSettings { status?.configuration.focus ?? FocusSettings() }
     var schedule: ScheduleStatus? { status.map { ScheduleStatus(configuration: $0.configuration, state: $0.state) } }
@@ -104,9 +106,17 @@ final class AppModel: ObservableObject {
         perform { try self.controller.startFocus(sessions: sessions) }
     }
     func stopFocus() { perform { try self.controller.stopFocus() } }
+    func pauseFocus() { perform { try self.controller.pauseFocus() } }
+    func resumeFocus() { perform { try self.controller.resumeFocus() } }
     func skipBreak() { perform { try self.controller.skipBreak() } }
     func startColor(minutes: Double = 5) { perform { try self.controller.startTemporaryColor(for: minutes * 60) } }
     func endColor() { perform { try self.controller.endTemporaryColor() } }
+    func beginHoldColor() {
+        guard !needsRecovery, previewRemaining == nil else { return }
+        perform { try self.controller.beginHoldColor() }
+    }
+    func renewHoldColor() { perform(quiet: true) { try self.controller.renewHoldColor() } }
+    func endHoldColor() { perform(quiet: true) { try self.controller.endHoldColor() } }
     /// Holds or drops the display-sleep assertion, and remembers the choice for the next launch.
     /// Quitting always drops it, so nothing is left behind on the Mac.
     func setKeepAwake(_ on: Bool) {

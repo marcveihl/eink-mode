@@ -1,6 +1,9 @@
 import Foundation
 
 public final class Controller {
+    /// A short in-memory lease. It is never written to state.json, so a restart cannot revive a held peek.
+    private var holdColorUntil: Date?
+    private var holdSessionStarted: Date?
     private let store: Store
     private let adapter: SystemAdapter
     private let calendar: Calendar
@@ -15,7 +18,12 @@ public final class Controller {
     private func history() throws -> FocusHistory { try store.read("focus-history.json", default: FocusHistory()) }
     private func save(_ history: FocusHistory) throws { try store.write(history, name: "focus-history.json") }
     public func status() throws -> Status {
-        try store.locked { Status(configuration: try configuration(), state: try state(), system: try adapter.snapshot()) }
+        try store.locked {
+            let state = try state()
+            var result = Status(configuration: try configuration(), state: state, system: try adapter.snapshot())
+            result.holdColorActive = holdColorUntil.map { $0 > Date() && state.session?.started == holdSessionStarted } ?? false
+            return result
+        }
     }
     /// `profile` activates with a one-off configuration (e.g. first-run preview) without saving it.
     public func setMode(_ active: Bool, manual: Bool = true, profile: Configuration? = nil, now: Date = Date()) throws {
@@ -77,8 +85,27 @@ public final class Controller {
     }
     private func updateLocked(_ config: Configuration, now: Date) throws {
         try config.validate()
+        holdColorUntil = nil; holdSessionStarted = nil // settings edits cancel a held override
         let previous = try configuration(); var state = try state()
+        var updatedHistory: FocusHistory?
+        if previous.focus.dailyGoal != config.focus.dailyGoal {
+            var focusHistory = try history()
+            let key = FocusHistory.key(now, calendar: calendar)
+            if focusHistory.days[key] != nil {
+                focusHistory.days[key]?.dailyGoal = config.focus.dailyGoal
+                updatedHistory = focusHistory
+            }
+        }
         try store.write(config, name: "config.json")
+        if let updatedHistory {
+            do { try save(updatedHistory) }
+            catch {
+                let historyError = error
+                do { try store.write(previous, name: "config.json") }
+                catch { throw EinkError.message("The daily goal could not be saved consistently. Retry the change. \(historyError.localizedDescription) \(error.localizedDescription)") }
+                throw historyError
+            }
+        }
         if previous.schedule != config.schedule {
             state.lastBoundary = nil; state.manualUntilBoundary = nil; try save(state)
         }
@@ -89,6 +116,11 @@ public final class Controller {
         try store.locked { var state = try state(); try tick(configuration(), state: &state, now: now) }
     }
     private func tick(_ config: Configuration, state: inout RuntimeState, now: Date) throws {
+        if let until = holdColorUntil, until <= now || state.session?.started != holdSessionStarted {
+            holdColorUntil = nil
+            holdSessionStarted = nil
+            if state.session != nil { try apply(config, state: &state, now: now) }
+        }
         if let until = state.colorUntil, until <= now {
             state.colorUntil = nil; try save(state)
             if state.session != nil { try apply(config, state: &state, now: now) }
@@ -104,6 +136,7 @@ public final class Controller {
     }
     public func resume(now: Date = Date()) throws {
         try store.locked {
+            holdColorUntil = nil; holdSessionStarted = nil
             var state = try state()
             guard state.session != nil else { return }
             if let until = state.colorUntil, until <= now { state.colorUntil = nil }
@@ -133,6 +166,40 @@ public final class Controller {
             if state.session != nil { try apply(configuration(), state: &state, now: now) }
         }
     }
+    /// Begins a momentary color override. The caller must renew only while the physical chord is down.
+    /// If key-up is lost, the lease expires on the next tick; a new Controller never inherits it.
+    public func beginHoldColor(now: Date = Date()) throws {
+        try store.locked {
+            if let until = holdColorUntil, until > now { return } // ignore key repeat
+            var state = try state(); let config = try configuration()
+            guard state.session != nil else { return }
+            holdColorUntil = now.addingTimeInterval(1.5)
+            holdSessionStarted = state.session?.started
+            do { try apply(config, state: &state, now: now) }
+            catch { holdColorUntil = nil; holdSessionStarted = nil; throw error }
+        }
+    }
+    public func renewHoldColor(now: Date = Date()) throws {
+        try store.locked {
+            guard let until = holdColorUntil else { return }
+            var state = try state()
+            guard until > now, let session = state.session, session.started == holdSessionStarted else {
+                holdColorUntil = nil; holdSessionStarted = nil
+                // A delayed watchdog must undo its expired override before discarding the lease.
+                if state.session != nil { try apply(configuration(), state: &state, now: now) }
+                return
+            }
+            holdColorUntil = now.addingTimeInterval(1.5)
+        }
+    }
+    public func endHoldColor(now: Date = Date()) throws {
+        try store.locked {
+            guard holdColorUntil != nil else { return }
+            holdColorUntil = nil; holdSessionStarted = nil
+            var state = try state()
+            if state.session != nil { try apply(configuration(), state: &state, now: now) }
+        }
+    }
     // MARK: Focus (Pomodoro)
 
     /// Starts a round of `sessions` focus sessions (default from settings), turning E-Ink Mode on if needed.
@@ -151,6 +218,7 @@ public final class Controller {
             let focusSeconds = TimeInterval(config.focus.focusMinutes * 60)
             state.colorUntil = nil
             state.focus = FocusSession(phase: .focus, round: 1, rounds: rounds, phaseStarted: now, phaseEnds: now.addingTimeInterval(focusSeconds),
+                                       roundStartedAt: now, dailyGoalAtStart: config.focus.dailyGoal,
                                        focusSeconds: focusSeconds, breakSeconds: TimeInterval(config.focus.breakMinutes * 60), ownsMode: owns)
             do { try apply(config, state: &state, now: now) }
             catch { state.focus = nil; try save(state); throw error }
@@ -165,6 +233,33 @@ public final class Controller {
             if focus.ownsMode { try restore(state: &state, now: now) } else { try apply(configuration(), state: &state, now: now) }
         }
     }
+    /// Freezes the current phase. The display keeps its current focus/break appearance.
+    public func pauseFocus(now: Date = Date()) throws {
+        try store.locked {
+            var state = try state()
+            guard state.focus != nil else { return }
+            let config = try configuration()
+            try advanceFocus(config, state: &state, now: now)
+            guard var focus = state.focus, focus.pausedAt == nil else { return }
+            focus.pausedAt = now
+            state.focus = focus
+            try save(state)
+        }
+    }
+    /// Continues the same phase and round, excluding the paused interval.
+    public func resumeFocus(now: Date = Date()) throws {
+        try store.locked {
+            var state = try state()
+            guard var focus = state.focus, let pausedAt = focus.pausedAt else { return }
+            let gap = max(0, now.timeIntervalSince(pausedAt))
+            focus.phaseStarted = focus.phaseStarted.addingTimeInterval(gap)
+            focus.phaseEnds = focus.phaseEnds.addingTimeInterval(gap)
+            focus.pausedAt = nil
+            state.focus = focus
+            try save(state)
+            if state.session != nil { try apply(configuration(), state: &state, now: now) }
+        }
+    }
     /// Ends the current color break and starts the next focus session now.
     public func skipBreak(now: Date = Date()) throws {
         try store.locked {
@@ -172,6 +267,7 @@ public final class Controller {
             guard var focus = state.focus, focus.phase == .rest else { throw EinkError.message("There's no break to skip.") }
             focus.round += 1; focus.phase = .focus
             focus.phaseStarted = now; focus.phaseEnds = now.addingTimeInterval(focus.focusSeconds)
+            focus.pausedAt = nil
             state.focus = focus
             try apply(configuration(), state: &state, now: now)
         }
@@ -181,16 +277,24 @@ public final class Controller {
     }
     /// Moves a running round through every phase boundary up to `now` (so it catches up after sleep).
     private func advanceFocus(_ config: Configuration, state: inout RuntimeState, now: Date) throws {
-        guard var focus = state.focus, now >= focus.phaseEnds else { return }
+        guard var focus = state.focus, focus.pausedAt == nil, now >= focus.phaseEnds else { return }
         guard state.session != nil else { state.focus = nil; return try save(state) } // display was restored elsewhere
         var history = try history(), finished = false
+        func goal(for completion: Date) -> Int? {
+            let key = FocusHistory.key(completion, calendar: calendar)
+            if key == FocusHistory.key(now, calendar: calendar) { return config.focus.dailyGoal }
+            if let started = focus.roundStartedAt, key == FocusHistory.key(started, calendar: calendar) {
+                return focus.dailyGoalAtStart
+            }
+            return nil
+        }
         while !finished && now >= focus.phaseEnds {
             switch focus.phase {
             case .focus:
                 let minutes = Int(focus.focusSeconds / 60)
-                history.update(focus.phaseEnds, calendar: calendar) { $0.completed += 1; $0.focusMinutes += minutes }
+                history.update(focus.phaseEnds, calendar: calendar, goal: goal(for: focus.phaseEnds)) { $0.completed += 1; $0.focusMinutes += minutes }
                 if focus.round >= focus.rounds {
-                    history.update(focus.phaseEnds, calendar: calendar) { $0.rounds += 1 }
+                    history.update(focus.phaseEnds, calendar: calendar, goal: goal(for: focus.phaseEnds)) { $0.rounds += 1 }
                     finished = true
                 } else {
                     focus.phase = .rest; focus.phaseStarted = focus.phaseEnds
@@ -214,9 +318,11 @@ public final class Controller {
     private func endFocusEarly(state: inout RuntimeState, now: Date) throws {
         guard let focus = state.focus else { return }
         if focus.phase == .focus {
-            let minutes = Int(max(0, now.timeIntervalSince(focus.phaseStarted)) / 60)
+            let minutes = Int(min(focus.focusSeconds, max(0, (focus.pausedAt ?? now).timeIntervalSince(focus.phaseStarted))) / 60)
             var history = try history()
-            history.update(now, calendar: calendar) { $0.stopped += 1; $0.focusMinutes += minutes }
+            // Attribute an interrupted phase to the day it began. A pause that spans
+            // midnight must not make the next day look like it contained focus work.
+            history.update(focus.phaseStarted, calendar: calendar, goal: try? configuration().focus.dailyGoal) { $0.stopped += 1; $0.focusMinutes += minutes }
             try save(history)
         }
         state.focus = nil; try save(state)
@@ -253,7 +359,10 @@ public final class Controller {
         guard session.phase != "restoring" else { throw EinkError.message("Restore the unfinished session before changing settings.") }
         var effective = config
         if let focus = state.focus { effective.grayscale = focus.phase == .focus } // focus in grayscale, break in color
-        if let until = state.colorUntil, until > now { effective.grayscale = false } // temporary color wins while it lasts
+        if let until = state.colorUntil, until > now { effective.grayscale = false } // timed color wins while it lasts
+        if let until = holdColorUntil, until > now, session.started == holdSessionStarted {
+            effective.grayscale = false // same effective-state resolver for held color
+        }
         let targets = desired(effective, original: session.original)
         let keys = Set(targets.keys).union(session.managed).sorted()
         session.phase = "applying"
@@ -267,6 +376,7 @@ public final class Controller {
         } catch { throw EinkError.message("Settings could not be fully applied. Restore or retry. \(error.localizedDescription)") }
     }
     private func restore(state: inout RuntimeState, now: Date = Date()) throws {
+        holdColorUntil = nil; holdSessionStarted = nil
         try endFocusEarly(state: &state, now: now)
         guard var session = state.session else { return } // never clear somebody else's grayscale
         session.phase = "restoring"; state.session = session; try save(state)

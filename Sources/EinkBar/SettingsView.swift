@@ -40,6 +40,8 @@ struct SettingsActions {
     var showWelcome: () -> Void
     var setShortcut: (String) -> Void
     var showStats: () -> Void = {}
+    var setHoldShortcut: (String) -> Void = { _ in }
+    var setHoldEnabled: (Bool) -> Void = { _ in }
 }
 
 /// A caption under a control.
@@ -188,6 +190,8 @@ struct GeneralSettings: View {
     }
     let actions: SettingsActions
     @AppStorage("shortcut") private var shortcut = Shortcut.presets[0].id
+    @AppStorage("holdShortcut") private var holdShortcut = Shortcut.holdPresets[0].id
+    @AppStorage("holdPeekEnabled") private var holdPeekEnabled = false
     var body: some View {
         Form {
             Section("Menu bar icon") {
@@ -216,6 +220,15 @@ struct GeneralSettings: View {
                     Text("None").tag(Shortcut.none)
                 }
                 Hint(model.hotkeyMessage)
+                Toggle("Hold to show color", isOn: Binding(get: { holdPeekEnabled }, set: { holdPeekEnabled = $0; actions.setHoldEnabled($0) }))
+                Picker("Hold color shortcut", selection: Binding(get: { holdShortcut }, set: { holdShortcut = $0; actions.setHoldShortcut($0) })) {
+                    ForEach(Shortcut.holdPresets) { Text($0.symbol).tag($0.id) }
+                }.disabled(!holdPeekEnabled)
+                Hint("While E-Ink Mode is on, press and hold the chosen keys for color. Release them to return to the current focus phase or timed color peek. The normal on/off shortcut stays separate.")
+                if holdPeekEnabled { Hint(model.holdHotkeyMessage) }
+                if holdPeekEnabled, holdShortcut == Shortcut.functionKeyID {
+                    Hint("If Globe also opens emoji or changes input sources, choose “Do Nothing” for “Press 🌐 key to” in macOS System Settings → Keyboard.")
+                }
             }
             Section("Startup") {
                 Toggle("Open E-Ink Mode at login", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))

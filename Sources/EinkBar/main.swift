@@ -14,6 +14,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pollTimer: Timer?
     private var secondTimer: Timer?
     private var hotkeys: HotkeyCenter?
+    private var holdHotkey: HotkeyCenter?
+    private var holdShortcut: Shortcut?
+    private var holdDown = false
+    private var holdWatchdog: Timer?
+    private var functionKeyMonitor: FunctionKeyMonitor?
     private var terminating = false
     private var poweringOff = false
     private var launchHandled = false
@@ -66,8 +71,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         model.onUserError = { [weak self] message in self?.presentError(message) }
         model.load()
-        hotkeys = HotkeyCenter { [weak self] in self?.model.toggle() }
+        hotkeys = HotkeyCenter(onPress: { [weak self] in self?.model.toggle() })
+        holdHotkey = HotkeyCenter(identifier: 2, onPress: { [weak self] in self?.holdPressed() },
+                                  onRelease: { [weak self] in self?.clearHeldColor() })
         applyShortcut(UserDefaults.standard.string(forKey: "shortcut") ?? Shortcut.presets[0].id)
+        applyHoldShortcut()
 
         pollTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in self?.model.poll() }
         // Ends temporary color and focus phases on time and keeps countdowns fresh.
@@ -78,6 +86,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let workspace = NSWorkspace.shared.notificationCenter
         workspace.addObserver(self, selector: #selector(wake), name: NSWorkspace.didWakeNotification, object: nil)
+        workspace.addObserver(self, selector: #selector(clearHeldColor), name: NSWorkspace.willSleepNotification, object: nil)
+        workspace.addObserver(self, selector: #selector(clearHeldColor), name: NSWorkspace.sessionDidResignActiveNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(clearHeldColor), name: NSApplication.didResignActiveNotification, object: nil)
+        DistributedNotificationCenter.default().addObserver(self, selector: #selector(clearHeldColor), name: Notification.Name("com.apple.screenIsLocked"), object: nil)
         workspace.addObserver(self, selector: #selector(willPowerOff), name: NSWorkspace.willPowerOffNotification, object: nil)
         DistributedNotificationCenter.default().addObserver(self, selector: #selector(revealFromAnotherLaunch),
                                                             name: Installation.showMenuNotification, object: nil)
@@ -108,10 +120,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if model.error != nil || model.needsRecovery { shade = nil; label = "E-Ink Mode needs attention" }
         else if let focus = model.focus {
             // Same shading as everywhere else; the countdown beside the icon shows a round is running.
-            shade = focus.phase == .rest || model.colorRemaining != nil ? .half : .shaded
-            label = MenuBuilder.focusLine(focus)
-            if model.menuBarCountdown { countdownText = countdown(focus.remaining(now: Date())) }
+            shade = focus.phase == .rest || model.colorRemaining != nil || model.holdingColor ? .half : .shaded
+            label = model.holdingColor ? "\(MenuBuilder.focusLine(focus)) — showing color while held" : MenuBuilder.focusLine(focus)
+            if model.menuBarCountdown { countdownText = focus.pausedAt == nil ? countdown(focus.remaining(now: Date())) : "Paused" }
         }
+        else if model.holdingColor { shade = .half; label = "E-Ink Mode — showing color while held" }
         else if let left = model.colorRemaining { shade = .half; label = "E-Ink Mode — color for \(countdown(left))" }
         else if model.active { shade = .shaded; label = "E-Ink Mode is on" }
         else { shade = .unshaded; label = "E-Ink Mode is off" }
@@ -212,6 +225,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func startColor() { model.startColor() }
     @objc func startFocus() { model.startFocus() }
     @objc func stopFocus() { model.stopFocus() }
+    @objc func pauseFocus() { model.pauseFocus() }
+    @objc func resumeFocus() { model.resumeFocus() }
     @objc func skipBreak() { model.skipBreak() }
     @objc func showStats() {
         if statsWindow == nil {
@@ -269,7 +284,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                           installUpdate: { [weak self] in self?.confirmUpdate() },
                                           showWelcome: { [weak self] in self?.showWelcome() },
                                           setShortcut: { [weak self] in self?.applyShortcut($0) },
-                                          showStats: { [weak self] in self?.showStats() })
+                                          showStats: { [weak self] in self?.showStats() },
+                                          setHoldShortcut: { [weak self] in self?.setHoldShortcut($0) },
+                                          setHoldEnabled: { [weak self] in self?.setHoldEnabled($0) })
             let hosting = NSHostingController(rootView: SettingsView(model: model, navigation: navigation, actions: actions))
             hosting.sizingOptions = [.preferredContentSize] // resize as tabs change height
             let window = NSWindow(contentViewController: hosting)
@@ -333,6 +350,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func applyShortcut(_ id: String) {
         UserDefaults.standard.set(id, forKey: "shortcut")
         model.hotkeyMessage = hotkeys?.register(Shortcut.presets.first { $0.id == id }) ?? ""
+        applyHoldShortcut()
+    }
+    private func applyHoldShortcut() {
+        clearHeldColor()
+        functionKeyMonitor?.stop()
+        functionKeyMonitor = nil
+        let enabled = UserDefaults.standard.bool(forKey: "holdPeekEnabled")
+        guard enabled, let choice = Shortcut.holdPresets.first(where: { $0.id == (UserDefaults.standard.string(forKey: "holdShortcut") ?? Shortcut.holdPresets[0].id) }) else {
+            holdShortcut = nil; holdHotkey?.unregister(); model.holdHotkeyMessage = "Hold to show color is off."; return
+        }
+        if let toggle = Shortcut.saved, toggle.keyCode == choice.keyCode && toggle.carbonModifiers == choice.carbonModifiers {
+            holdShortcut = nil; holdHotkey?.unregister()
+            model.holdHotkeyMessage = "\(choice.symbol) is already used to switch E-Ink Mode. Choose another combination."
+            return
+        }
+        holdShortcut = choice
+        if choice.id == Shortcut.functionKeyID {
+            holdHotkey?.unregister()
+            let monitor = FunctionKeyMonitor(onPress: { [weak self] in self?.holdPressed() },
+                                             onRelease: { [weak self] in self?.clearHeldColor() })
+            functionKeyMonitor = monitor
+            monitor.start()
+            model.holdHotkeyMessage = "Hold Fn / Globe for color; release to return. Your Mac’s existing Globe action may also run."
+            return
+        }
+        model.holdHotkeyMessage = holdHotkey?.register(choice) ?? ""
+    }
+    private func holdPressed() {
+        guard !holdDown, holdShortcut != nil, model.active, !model.needsRecovery else { return }
+        holdDown = true
+        model.beginHoldColor()
+        let timer = Timer(timeInterval: 0.4, repeats: true) { [weak self] _ in
+            guard let self, let shortcut = self.holdShortcut else { self?.clearHeldColor(); return }
+            let state = CGEventSourceStateID.combinedSessionState
+            let flags = CGEventSource.flagsState(state)
+            let modifiers = shortcut.modifiers
+            let stillDown = shortcut.id == Shortcut.functionKeyID ? FunctionKeyMonitor.isDown : CGEventSource.keyState(state, key: CGKeyCode(shortcut.keyCode))
+                && (!modifiers.contains(.control) || flags.contains(.maskControl))
+                && (!modifiers.contains(.option) || flags.contains(.maskAlternate))
+                && (!modifiers.contains(.command) || flags.contains(.maskCommand))
+                && (!modifiers.contains(.shift) || flags.contains(.maskShift))
+            if stillDown { self.model.renewHoldColor() } else { self.clearHeldColor() }
+        }
+        holdWatchdog = timer; RunLoop.main.add(timer, forMode: .common)
+    }
+    @objc private func clearHeldColor() {
+        guard holdDown else { return }
+        holdDown = false; holdWatchdog?.invalidate(); holdWatchdog = nil
+        model.endHoldColor()
+    }
+    private func setHoldShortcut(_ id: String) {
+        UserDefaults.standard.set(id, forKey: "holdShortcut"); applyHoldShortcut()
+    }
+    private func setHoldEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: "holdPeekEnabled"); applyHoldShortcut()
     }
 
     // MARK: Updates
@@ -379,7 +451,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: Lifecycle and restoration
 
-    @objc func wake() { model.poll() }
+    @objc func wake() { clearHeldColor(); model.poll() }
     @objc func willPowerOff() { poweringOff = true }
     /// `kill`, logout via launchd, or Ctrl-C still put the display back.
     private func installSignalHandlers() {
@@ -399,7 +471,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         while true {
             do {
                 try model.controller.shutdown(resumeScheduleOnLaunch: poweringOff)
-                terminating = true; pollTimer?.invalidate(); secondTimer?.invalidate(); hotkeys?.unregister()
+                clearHeldColor()
+                functionKeyMonitor?.stop()
+                terminating = true; pollTimer?.invalidate(); secondTimer?.invalidate(); hotkeys?.unregister(); holdHotkey?.unregister()
                 DisplayAwake.shared.hold(false)
                 return .terminateNow
             } catch {

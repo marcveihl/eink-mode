@@ -17,10 +17,9 @@ The script downloads the latest version, checks it, quits any older copy (restor
 
 1. Download `E-Ink-Mode-<version>.zip` from the [latest release](https://github.com/marcveihl/eink-mode/releases) and double-click it to unzip.
 2. Drag **E-Ink Mode** into your **Applications** folder.
-3. Double-click it. Because this beta isn't notarized by Apple yet, macOS will say it *can't verify* the app. Click **Done** (or **OK** on older macOS), not *Move to Trash*.
-4. Open **System Settings → Privacy & Security**, scroll down, and click **Open Anyway** next to *"E-Ink Mode" was blocked*. Confirm with your password.
+3. Double-click it. Signed, notarized releases should open without Gatekeeper workarounds. The previously published beta is not notarized; check the release notes for your download. The first release from the new signing pipeline still needs clean-Mac validation.
 
-You only do this once. Later updates install from inside the app.
+New release installers and in-app updates verify the expected publisher before replacing the app and preserve quarantine. Development copies without a configured publisher identity require manual installation of a signed release.
 </details>
 
 If you open the app from Downloads, it offers to **move itself into Applications**. Say yes: launch-at-login and updates work reliably only from there. If you open the app while it's already running, the running copy shows you where it lives instead of starting a second one. If the two copies are different versions, you choose which one to keep.
@@ -49,6 +48,7 @@ Click the E-Ink Mode icon (**○** or **●**) in the menu bar. The mode and the
 | **E-Ink Mode · On / Off** | The current state at a glance. |
 | **Turn On / Turn Off** | The main switch. **⌘⇧E** does the same from any app. |
 | **Color for 5 Minutes** | Brings color back briefly, then returns to grayscale by itself. |
+| **Hold to show color** | An optional shortcut (default **⌃⌥⌘C**) shows color only while you hold the keys. You can also choose **Fn / 🌐 Globe** alone in **Settings → General**. Release to return to the current focus, timed-peek, or schedule state. |
 | **Start Focus · 4 × 25 min** | Starts a round of focus sessions with color breaks ([below](#focus-sessions-and-daily-stats)). |
 | **Focus Stats…** | Your daily tracker. The line below it shows today's count and your streak. |
 | **Keep Display Awake** | Stops the display sleeping while it's checked ([below](#keep-display-awake)). |
@@ -58,6 +58,8 @@ Click the E-Ink Mode icon (**○** or **●**) in the menu bar. The mode and the
 | **Quit and Restore Display** | Puts everything back and closes the app. |
 
 ### Reading the icon
+
+Fn/Globe peeking does not replace the key’s macOS action. If it also opens emoji or changes input sources, choose **Do Nothing** for **Press 🌐 key to** in **System Settings → Keyboard**. The app does not change that preference for you.
 
 The icon's shading tells you what your screen is doing. The same rule applies to the standard dot and to the wildcat in [Wildcat mode](#settings):
 
@@ -92,18 +94,20 @@ Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus 
 
   <img src="img/menu-focus-color.png" width="380" alt="Menu mid-focus with a color peek: Focus 1 of 4 · 18:29 left, Resume grayscale · 4:32 remaining">
 - **Flexible.** **Skip Break** starts the next session right away. **Stop Focus Session** ends the round, and minutes you already focused still count.
+- **Pause and resume.** **Pause Focus Round** freezes the current focus or break phase and its countdown; **Resume Focus Round** continues the same phase and round. Focus stays grayscale and breaks stay in color while paused. Paused time earns no minutes or completed sessions. Stopping while paused credits only active focus minutes already spent. A temporary color peek can expire while the round is paused; its expiry returns grayscale without restarting the focus timer. The schedule waits until the round ends, even while paused. Quitting restores the display and ends the round; after a crash, **Continue Session** restores the display state while keeping a paused round paused.
 - **Sleep and restart.** The timer uses elapsed time, so sleeping through a phase can still count it as completed. When your Mac wakes, the round catches up. If the app restarts, the round continues. The schedule waits until the round is over.
 
 ### Your daily tracker
 
 **Focus Stats…** shows how your studying adds up.
 
-<p align="center"><img src="img/focus-stats.png" width="576" alt="Focus Stats: today 3 of 4 sessions with progress bar and daily goal control, 7-day streak, 36 this week, 91 all time, best day 9, and a 7-day bar chart with a goal line"></p>
+<p align="center"><img src="img/focus-stats.png" width="576" alt="Focus Stats: today's completed sessions and goal, streak, retained totals, best day, and a seven-day chart"></p>
 
-- **Today:** completed sessions against your **daily goal**, plus minutes focused. The goal is 4 sessions a day by default. Set it (1–24) right under the progress bar, or in **Settings → Focus**.
-- **Streak:** days in a row with at least one completed session, and your best streak. Nothing yet today? Yesterday still counts, so the streak stays alive until midnight.
-- **This week, all time, and best day**, plus how many days you've met your goal. “All time” reflects retained history; the current app keeps up to 800 recorded days.
-- **Last 7 days:** a bar per day, with your goal as a dashed line.
+- **Today:** completed focus timer sessions against your **daily goal**, plus focus timer minutes. The goal is 4 sessions a day by default. Set it (1–24) right under the progress bar, or in **Settings → Focus**. Changing today's goal changes today's progress and goal result; goals saved for earlier days stay as they were.
+- **Completed sessions** ran their full focus timer. **Minutes** include full sessions and elapsed minutes from sessions stopped early. **Rounds** count only when every focus session in the round finishes. These are timer records, not measurements of attention or work accomplished.
+- **Streak:** days in a row with at least one completed session, and your best streak. Nothing yet today? Yesterday still counts, so the streak stays alive until midnight. Streaks do not depend on the daily goal.
+- **This week, retained days, and best day**, plus the number of recorded days whose saved goal was met. The app retains up to 800 recorded days, so these totals do not claim all-time coverage. When older days have no saved goal, their original goal is unknown. They remain in session and minute totals but are excluded from “Goal met”; the app does not guess a goal for them.
+- **Last 7 days:** a bar per day's completed sessions and a marker at that day's saved goal. An older day with an unknown goal has no marker.
 - **A nudge that fits the moment:** *5 more sessions to reach today's goal*, *Keep your 4-day streak alive*, *New personal best!*
 
 ### Make it yours
@@ -113,6 +117,7 @@ Choose lengths and goals in **Settings → Focus**: focus 5–90 minutes, breaks
 <p align="center"><img src="img/settings-focus.png" width="516" alt="Focus settings: focus length, break length, sessions per round, daily goal, sound and menu bar countdown toggles"></p>
 
 Your focus history stays on your Mac (`focus-history.json`) and never leaves it.
+For new history, the app saves a goal with each recorded day. If a round is recorded after its start day, it uses the goal captured when that round began for that start day. A later day whose goal was never observed stays “unknown.” Existing history from older versions has no saved goals; upgrading keeps those goals unknown instead of assigning today's setting to the past.
 
 ## Color for 5 minutes
 
@@ -205,7 +210,7 @@ E-Ink Mode has no accounts, analytics, or tracking. Update checks contact GitHub
 
 ## Known limitations
 
-- **Beta signing:** this beta isn't notarized by Apple yet, so a manual download needs the one-time *Open Anyway* step. The install command avoids this.
+- **Beta signing:** the previously published beta is not notarized. The new release pipeline requires signing and notarization, with the first signed release still awaiting clean-Mac validation. Check your release notes; the new installer does not remove quarantine.
 - **Warm colors:** use Night Shift or f.lux. E-Ink Mode leaves warmth to them.
 - **Notifications:** E-Ink Mode doesn't change Focus or Do Not Disturb, because macOS gives apps no reliable way to restore them.
 - **Brightness** works only on displays that let macOS control it.
@@ -238,7 +243,7 @@ The app bundles a CLI with the same controls, sharing the same saved settings an
 eink status | on | off | toggle | version
 eink color [minutes]      # temporary color (default 5), then back to grayscale
 eink grayscale            # end temporary color now
-eink focus [sessions]     # start a round of focus sessions; eink focus stop | skip
+eink focus [sessions]     # start a round; eink focus pause | resume | stop | skip
 eink stats                # today's progress, streak, and totals
 eink set focus-minutes|break-minutes|focus-sessions|daily-goal N
 eink set grayscale|dock|motion|transparency on|off

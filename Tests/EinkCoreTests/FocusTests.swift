@@ -109,6 +109,38 @@ final class FocusTests: XCTestCase {
         XCTAssertEqual(try controller.focusStats(now: start).goal, 6)
         XCTAssertThrowsError(try controller.edit(now: start) { $0.focus.dailyGoal = 0 })
     }
+    func testUnreadableHistoryDoesNotPartiallyChangeDailyGoal() throws {
+        try Data("corrupt".utf8).write(to: directory.appendingPathComponent("focus-history.json"))
+        XCTAssertThrowsError(try controller.edit(now: start) { $0.focus.dailyGoal = 7 })
+        XCTAssertEqual(try controller.status().configuration.focus.dailyGoal, 4)
+    }
+    func testChangingTodayGoalPreservesEarlierRecordedGoalAcrossDayBoundary() throws {
+        try controller.startFocus(sessions: 1, now: start)
+        try controller.tick(now: at(25))
+        XCTAssertEqual(try controller.focusStats(now: at(25)).daysGoalMet, 0)
+        try controller.edit(now: at(26)) { $0.focus.dailyGoal = 1 }
+        XCTAssertEqual(try controller.focusStats(now: at(26)).daysGoalMet, 1)
+
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: start)!
+        try controller.edit(now: nextDay) { $0.focus.dailyGoal = 5 }
+        try controller.startFocus(sessions: 1, now: nextDay)
+        try controller.tick(now: nextDay.addingTimeInterval(25 * 60))
+        let stats = try controller.focusStats(now: nextDay.addingTimeInterval(25 * 60))
+        XCTAssertEqual(stats.daysGoalMet, 1, "yesterday's saved goal remains met")
+        XCTAssertEqual(stats.today.dailyGoal, 5)
+        XCTAssertEqual(stats.week[5].goal, 1)
+    }
+    func testDelayedCompletionUsesGoalCapturedOnRoundStartDay() throws {
+        let late = calendar.date(bySettingHour: 23, minute: 20, second: 0, of: start)!
+        try controller.startFocus(sessions: 1, now: late)
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: late)!
+        try controller.edit(now: nextDay) { $0.focus.dailyGoal = 1 }
+        try controller.tick(now: nextDay)
+        let stats = try controller.focusStats(now: nextDay)
+        XCTAssertEqual(stats.week[5].completed, 1)
+        XCTAssertEqual(stats.week[5].goal, 4, "delayed recording must retain the goal at round start")
+        XCTAssertEqual(stats.daysGoalMet, 0)
+    }
     func testScheduleWaitsForTheRoundToFinish() throws {
         var config = try controller.status().configuration
         config.schedule.enabled = true; config.schedule.on = 8 * 60; config.schedule.off = 9 * 60 + 30
@@ -124,6 +156,19 @@ final class FocusTests: XCTestCase {
         try controller.edit(now: at(5)) { $0.focus.focusMinutes = 50 }
         XCTAssertEqual(try controller.status().state.focus?.phaseEnds, at(25))
     }
+    func testStoppedPhaseIsAttributedToItsStartDayAcrossMidnight() throws {
+        let late = calendar.date(bySettingHour: 23, minute: 50, second: 0, of: start)!
+        try controller.startFocus(now: late)
+        try controller.pauseFocus(now: late.addingTimeInterval(5 * 60))
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: late))!
+        try controller.stopFocus(now: nextDay.addingTimeInterval(10 * 60))
+        let previous = try controller.focusStats(now: nextDay).today
+        XCTAssertEqual(previous.focusMinutes, 0, "the next day must not receive prior-day interrupted minutes")
+        let historyData = try Data(contentsOf: directory.appendingPathComponent("focus-history.json"))
+        let history = try JSONDecoder().decode(FocusHistory.self, from: historyData)
+        XCTAssertEqual(history.days[FocusHistory.key(late, calendar: calendar)]?.focusMinutes, 5)
+        XCTAssertNil(history.days[FocusHistory.key(nextDay, calendar: calendar)])
+    }
     func testFocusSurvivesRestartAndResume() throws {
         try controller.startFocus(now: start)
         let restarted = Controller(store: Store(directory: directory), adapter: system, calendar: calendar)
@@ -132,6 +177,77 @@ final class FocusTests: XCTestCase {
         XCTAssertTrue(gray)
         try restarted.tick(now: at(25))
         XCTAssertFalse(gray)
+    }
+    func testPauseFreezesPhaseAndExcludesTimeAcrossRestart() throws {
+        try controller.startFocus(sessions: 2, now: start)
+        try controller.pauseFocus(now: at(10.5))
+        try controller.pauseFocus(now: at(11))
+        let restarted = Controller(store: Store(directory: directory), adapter: system, calendar: calendar)
+        try restarted.tick(now: at(100))
+        let paused = try XCTUnwrap(try restarted.status().state.focus)
+        XCTAssertEqual(paused.phase, .focus)
+        XCTAssertEqual(paused.round, 1)
+        XCTAssertEqual(paused.remaining(now: at(100)), 14.5 * 60, accuracy: 0.01)
+        XCTAssertEqual(try restarted.focusStats(now: at(100)).today.completed, 0)
+        try restarted.resume(now: at(100)) // display recovery keeps the round paused
+        XCTAssertNotNil(try restarted.status().state.focus?.pausedAt)
+        try restarted.resumeFocus(now: at(100))
+        try restarted.resumeFocus(now: at(101))
+        XCTAssertEqual(try restarted.status().state.focus?.phaseEnds, at(114.5))
+        try restarted.tick(now: at(114.5))
+        XCTAssertEqual(try restarted.focusStats(now: at(115)).today.completed, 1)
+        XCTAssertEqual(try restarted.focusStats(now: at(115)).today.focusMinutes, 25)
+    }
+    func testStopWhilePausedCreditsOnlyActiveMinutes() throws {
+        try controller.startFocus(now: start)
+        try controller.pauseFocus(now: at(12.5))
+        try controller.stopFocus(now: at(90))
+        try controller.stopFocus(now: at(91))
+        let today = try controller.focusStats(now: at(91)).today
+        XCTAssertEqual(today.completed, 0)
+        XCTAssertEqual(today.stopped, 1)
+        XCTAssertEqual(today.focusMinutes, 12)
+    }
+    func testPausedRoundRestoresWithDamagedConfig() throws {
+        let original = system.values
+        try controller.startFocus(now: start)
+        try controller.pauseFocus(now: at(8))
+        try Data("corrupt".utf8).write(to: directory.appendingPathComponent("config.json"))
+        try controller.setMode(false, now: at(100))
+        XCTAssertEqual(system.values, original)
+        XCTAssertNil(try Store(directory: directory).read("state.json", default: RuntimeState()).focus)
+    }
+    func testLegacyPersistedRoundDecodesWithoutPauseFields() throws {
+        let old = #"{"phase":"focus","round":1,"rounds":4,"phaseStarted":0,"phaseEnds":1500,"focusSeconds":1500,"breakSeconds":300,"ownsMode":true}"#
+        let focus = try JSONDecoder().decode(FocusSession.self, from: Data(old.utf8))
+        XCTAssertNil(focus.pausedAt)
+        XCTAssertEqual(focus.remaining(now: Date(timeIntervalSinceReferenceDate: 0)), 1500)
+    }
+    func testPauseBreakKeepsColorAndScheduleDefersUntilStop() throws {
+        var config = try controller.status().configuration
+        config.schedule.enabled = true; config.schedule.on = 8 * 60; config.schedule.off = 9 * 60 + 30
+        try controller.update(config, now: start)
+        try controller.startFocus(sessions: 2, now: start)
+        try controller.tick(now: at(25))
+        try controller.pauseFocus(now: at(27))
+        try controller.tick(now: at(60))
+        XCTAssertFalse(gray)
+        XCTAssertEqual(try controller.status().state.focus?.phase, .rest)
+        XCTAssertEqual(try XCTUnwrap(controller.status().state.focus).remaining(now: at(60)), 3 * 60, accuracy: 0.01)
+        try controller.resumeFocus(now: at(60))
+        try controller.tick(now: at(63))
+        XCTAssertTrue(gray)
+        XCTAssertEqual(try controller.status().state.focus?.round, 2)
+    }
+    func testColorPeekExpiresWhileFocusPausedWithoutAdvancingFocus() throws {
+        try controller.startFocus(now: start)
+        try controller.startTemporaryColor(for: 5 * 60, now: at(2))
+        try controller.pauseFocus(now: at(3))
+        XCTAssertFalse(gray)
+        try controller.tick(now: at(7))
+        XCTAssertTrue(gray)
+        XCTAssertNotNil(try controller.status().state.focus?.pausedAt)
+        XCTAssertEqual(try XCTUnwrap(controller.status().state.focus).remaining(now: at(7)), 22 * 60, accuracy: 0.01)
     }
     func testSettingsValidation() {
         var settings = FocusSettings()
@@ -155,7 +271,7 @@ final class FocusStatsTests: XCTestCase {
     override func setUp() { calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: "America/Chicago")! }
     func history(_ days: [String: Int]) -> FocusHistory {
         var h = FocusHistory()
-        for (key, n) in days { var r = DayRecord(); r.completed = n; r.focusMinutes = n * 25; h.days[key] = r }
+        for (key, n) in days { var r = DayRecord(); r.completed = n; r.focusMinutes = n * 25; r.dailyGoal = 4; h.days[key] = r }
         return h
     }
     func stats(_ days: [String: Int], goal: Int = 4) -> FocusStats {
@@ -188,5 +304,44 @@ final class FocusStatsTests: XCTestCase {
         XCTAssertEqual(s.totalCompleted, 14); XCTAssertEqual(s.totalMinutes, 350)
         XCTAssertEqual(s.weekCompleted, 6); XCTAssertEqual(s.bestDay, 8); XCTAssertEqual(s.daysGoalMet, 2)
         XCTAssertEqual(s.week.last?.completed, 4)
+    }
+    func testLegacyGoalIsUnknownAndExcludedWithoutChangingOtherTotals() throws {
+        let old = #"{"days":{"2026-09-15":{"completed":6,"focusMinutes":150,"stopped":0,"rounds":1}}}"#
+        let history = try JSONDecoder().decode(FocusHistory.self, from: Data(old.utf8))
+        XCTAssertNil(history.days["2026-09-15"]?.dailyGoal)
+        let stats = FocusStats(history: history, goal: 4, now: now, calendar: calendar, locale: locale)
+        XCTAssertEqual(stats.totalCompleted, 6)
+        XCTAssertEqual(stats.totalRounds, 1)
+        XCTAssertEqual(stats.daysGoalMet, 0)
+        XCTAssertEqual(stats.unknownGoalDays, 1)
+        XCTAssertNil(stats.week[5].goal)
+        let roundTrip = try JSONDecoder().decode(FocusHistory.self, from: JSONEncoder().encode(history))
+        XCTAssertNil(roundTrip.days["2026-09-15"]?.dailyGoal)
+    }
+    func testDelayedRecordKeepsOriginalGoalAndLegacyUnknown() {
+        var history = history(["2026-09-15": 2])
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: now)!
+        history.update(yesterday, calendar: calendar, goal: 24) { $0.completed += 1 }
+        XCTAssertEqual(history.days["2026-09-15"]?.dailyGoal, 4)
+
+        history.days["2026-09-15"]?.dailyGoal = nil
+        history.update(yesterday, calendar: calendar, goal: 24) { $0.completed += 1 }
+        XCTAssertNil(history.days["2026-09-15"]?.dailyGoal)
+    }
+    func testRetentionPrunesOldestAndKeepsSurvivingGoals() {
+        var history = FocusHistory()
+        let first = calendar.date(from: DateComponents(year: 2024, month: 1, day: 1))!
+        for offset in 0..<801 {
+            let date = calendar.date(byAdding: .day, value: offset, to: first)!
+            history.update(date, calendar: calendar, goal: offset % 2 == 0 ? 2 : 3) { $0.completed = 2 }
+        }
+        XCTAssertEqual(history.days.count, 800)
+        XCTAssertNil(history.days[FocusHistory.key(first, calendar: calendar)])
+        let surviving = calendar.date(byAdding: .day, value: 1, to: first)!
+        XCTAssertEqual(history.days[FocusHistory.key(surviving, calendar: calendar)]?.dailyGoal, 3)
+        let final = calendar.date(byAdding: .day, value: 800, to: first)!
+        let stats = FocusStats(history: history, goal: 24, now: final, calendar: calendar, locale: locale)
+        XCTAssertEqual(stats.daysGoalMet, 400)
+        XCTAssertEqual(stats.unknownGoalDays, 0)
     }
 }

@@ -83,7 +83,6 @@ public enum BundleSwap {
       mv "$target" "$target.previous" || exit 1
       if mv "$replacement" "$target" 2>/dev/null; then rm -rf "$target.previous"; else mv "$target.previous" "$target"; status=2; fi
     fi
-    xattr -dr com.apple.quarantine "$target" 2>/dev/null
     ${EINK_OPEN:-open} "$target" --args "$@"
     exit $status
     """

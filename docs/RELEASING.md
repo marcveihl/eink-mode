@@ -11,13 +11,15 @@
 
 ## Signing and notarization
 
-Without a Developer ID the app is ad-hoc signed. The installer clears quarantine, so it opens normally. A browser download needs *Open Anyway* once (see the README).
+Local `./scripts/build.sh` builds may use an ad hoc signature for development. `./scripts/release.sh` refuses to publish without a Developer ID identity, its 10-character Team ID, and a notarytool keychain profile. The installer and updater only accept the pinned publisher. Neither removes quarantine.
 
 For Gatekeeper-clean builds, you need an Apple Developer Program membership:
 
 ```sh
-xcrun notarytool store-credentials eink-notary --apple-id <id> --team-id <team>   # once
-EINK_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" EINK_NOTARY_PROFILE=eink-notary ./scripts/release.sh
+xcrun notarytool store-credentials eink-notary --apple-id <id> --team-id <team>   # once; keep credentials in Keychain
+EINK_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" EINK_TEAM_ID=TEAMID1234 EINK_NOTARY_PROFILE=eink-notary ./scripts/release.sh
 ```
 
-The build then signs with the hardened runtime and a timestamp, submits to notarization, staples the ticket, and re-zips. Keep the same identity for every release: macOS ties login-item approval to it.
+Use your actual Apple Team ID in `EINK_TEAM_ID`; never commit credentials. The build checks that the signature contains this Team ID, signs with hardened runtime and a timestamp, requires an accepted notarization result, staples and validates the app ticket, and re-zips the stapled app. A failed check stops the release before tagging or uploading. Keep the same identity for every release: macOS ties login-item approval to it.
+
+Before publishing, run the clean-Mac installation and update checks in [QA.md](QA.md), including display restoration during the upgrade. These checks require real credentials and hardware; an ad hoc development build cannot stand in for them.

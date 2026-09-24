@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (Focus controls and held color)
+
+- **Hold to show color:** enable a dedicated hold shortcut in Settings → General. Choose Fn/Globe alone or a modifier combination; releasing returns to the current display state without replacing a timed color peek. Fn/Globe keeps its existing macOS action.
+- **Pause/Resume Focus Round:** pause either focus or break time without losing the round or crediting the paused gap. Menu, Focus Stats, and CLI controls share the same persisted state. Automatic sleep/lock pausing is still planned.
+- **Historical goals:** recorded days preserve their goal, older unknown goals remain explicitly unknown, and charts use saved daily targets. Totals describe up to 800 retained recorded days rather than claiming all-time coverage.
+- **Trusted distribution:** release builds require Developer ID signing and accepted notarization. Installers and updates check the expected publisher and preserve quarantine. Credential setup and clean-Mac signed-release validation remain pending.
+- Verified with 89 Swift tests, CLI integration, and offline release guard checks. Fn/Globe hold/release was also confirmed on the local Mac.
+
 ## 0.10.0-beta.3 (Keep display awake)
 
 - **Keep Display Awake** in the menu (and **Settings → General → Display sleep**): while it's checked, the display won't sleep and the screen saver won't start, whether or not E-Ink Mode is on. Useful for reading a long page without touching the keyboard.
