@@ -1,0 +1,4 @@
+# Packaging-only dependencies, installed on top of requirements.txt.
+# `build.ps1` does `pip install -r requirements.txt -r requirements-build.txt`
+# before invoking PyInstaller.
+pyinstaller==6.22.3
