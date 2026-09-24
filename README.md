@@ -96,7 +96,7 @@ The same one-click grayscale switch, ported to Windows 10/11 (x64) on top of Win
 
 1. Download `EInkMode-Setup-0.1.0.exe` from the [Windows beta release](https://github.com/marcveihl/eink-mode/releases/tag/windows-v0.1.0-beta.1) and run it. No administrator rights are needed — it installs for your user only, into `%LOCALAPPDATA%\Programs\E-Ink Mode`.
 2. **Windows SmartScreen will probably warn you** ("Windows protected your PC") because this build isn't code-signed yet. Click **More info**, then **Run anyway**.
-3. Finish the wizard. It offers a Start Menu shortcut and an optional desktop shortcut (unchecked by default).
+3. Choose **Install for me only**, then finish the wizard. It offers a Start Menu shortcut and an optional desktop shortcut (unchecked by default).
 
 <p align="center">
   <img src="docs/img/windows/02-install-dir.png" width="240" alt="Setup: Select Destination Location">
@@ -121,7 +121,7 @@ If E-Ink Mode is ever unresponsive, **Win+Ctrl+C** is the OS's own toggle — it
 
 ### Not yet on Windows
 
-Focus sessions and stats, the auto-updater, and code signing. Everything else in the sections above applies to the Mac app only; the Windows beta has its own install, tray, and CLI — see [`windows/README.md`](windows/README.md) and its [changelog](windows/CHANGELOG.md) for the full picture.
+Focus sessions and stats, the auto-updater, and code signing. Everything else above works on Windows too: one-click grayscale, Color for 5 Minutes, the evening schedule, and the optional extras (dimming, taskbar auto-hide, reduce motion and transparency). The Windows beta has its own installer, tray, and `eink.exe` CLI — see [`windows/README.md`](windows/README.md) and its [changelog](windows/CHANGELOG.md).
 
 ## Build
 
