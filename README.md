@@ -4,7 +4,9 @@
 
 **A quieter Mac in one click.** Switch to grayscale, take a short color break, or run timed focus sessions from your menu bar.
 
-For macOS 13 Ventura or newer · Apple silicon and Intel · **Beta**
+For macOS 13 Ventura or newer (Apple silicon and Intel) or Windows 10/11 x64 · **Beta**
+
+**New: Windows beta, 2026-09-24** — see [Windows (beta)](#windows-beta) below.
 
 [Download](https://github.com/marcveihl/eink-mode/releases/latest) · [User guide](docs/USER-GUIDE.md) · [Changelog](CHANGELOG.md) · [Roadmap](docs/ROADMAP.md)
 
@@ -84,6 +86,43 @@ The app saves your original display settings for restoration. After a crash, it 
 
 Brightness support varies by display. Night Shift, f.lux, and notification settings are managed separately. Schedules require the app to be running. Focus stats record elapsed timer sessions, including catch-up after sleep—not measured attention.
 
+## Windows (beta)
+
+The same one-click grayscale switch, ported to Windows 10/11 (x64) on top of Windows' own Color Filters. This is a separate, earlier-stage beta — see [what's not here yet](#not-yet-on-windows) below.
+
+<p align="center"><img src="docs/img/windows/11-tray-off.png" width="220" alt="E-Ink Mode tray menu, off"> <img src="docs/img/windows/12-tray-on.png" width="220" alt="E-Ink Mode tray menu, on"></p>
+
+### Install
+
+1. Download `EInkMode-Setup-0.1.0.exe` from the [Windows beta release](https://github.com/marcveihl/eink-mode/releases/tag/windows-v0.1.0-beta.1) and run it. No administrator rights are needed — it installs for your user only, into `%LOCALAPPDATA%\Programs\E-Ink Mode`.
+2. **Windows SmartScreen will probably warn you** ("Windows protected your PC") because this build isn't code-signed yet. Click **More info**, then **Run anyway**.
+3. Choose **Install for me only**, then finish the wizard. It offers a Start Menu shortcut and an optional desktop shortcut (unchecked by default).
+
+<p align="center">
+  <img src="docs/img/windows/02-install-dir.png" width="240" alt="Setup: Select Destination Location">
+  <img src="docs/img/windows/03-tasks.png" width="240" alt="Setup: Select Additional Tasks">
+  <img src="docs/img/windows/06-finish.png" width="240" alt="Setup: Completing the E-Ink Mode Setup Wizard">
+</p>
+
+### First run
+
+The first launch shows a short Welcome guide with a live 10-second grayscale preview. After that, look for **○** near the clock — it fills in (**●**) while your screen is grayscale, and shows **◐** during a temporary color break. Click it for the menu: Color for 5 Minutes, Schedule, Customize Appearance…, Settings…, and Quit and Restore Display.
+
+<p align="center"><img src="docs/img/windows/07-welcome.png" width="320" alt="Welcome to E-Ink Mode guide"></p>
+<p align="center">
+  <img src="docs/img/windows/08-settings-general.png" width="220" alt="Settings — General">
+  <img src="docs/img/windows/09-settings-appearance.png" width="220" alt="Settings — Appearance">
+  <img src="docs/img/windows/10-settings-schedule.png" width="220" alt="Settings — Schedule">
+</p>
+
+### Escape hatch
+
+If E-Ink Mode is ever unresponsive, **Win+Ctrl+C** is the OS's own toggle — it works whether or not the tray is running.
+
+### Not yet on Windows
+
+Focus sessions and stats, the auto-updater, and code signing. Everything else above works on Windows too: one-click grayscale, Color for 5 Minutes, the evening schedule, and the optional extras (dimming, taskbar auto-hide, reduce motion and transparency). The Windows beta has its own installer, tray, and `eink.exe` CLI — see [`windows/README.md`](windows/README.md) and its [changelog](windows/CHANGELOG.md).
+
 ## Build
 
 Requires Xcode command-line tools with Swift 5.9+ and Python 3. No third-party dependencies.
@@ -94,3 +133,5 @@ Requires Xcode command-line tools with Swift 5.9+ and Python 3. No third-party d
 ```
 
 [CLI reference](docs/USER-GUIDE.md#for-developers) · [Release guide](docs/RELEASING.md) · [Beta testing](docs/BETA-TESTING.md) · [QA checklist](docs/QA.md)
+
+Windows build: see [`windows/README.md`](windows/README.md#building-the-installer) (`windows/build.ps1`).
