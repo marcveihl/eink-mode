@@ -18,8 +18,14 @@ struct FocusStatsView: View {
                     Tile(title: "Streak", value: "\(stats.streak) day\(stats.streak == 1 ? "" : "s")",
                          detail: "Best \(stats.bestStreak)", symbol: "flame")
                     Tile(title: "This week", value: "\(stats.weekCompleted)", detail: hours(stats.weekMinutes), symbol: "calendar")
-                    Tile(title: "All time", value: "\(stats.totalCompleted)", detail: hours(stats.totalMinutes), symbol: "sum")
+                    Tile(title: "Retained total", value: "\(stats.totalCompleted)", detail: hours(stats.totalMinutes), symbol: "sum")
                     Tile(title: "Best day", value: "\(stats.bestDay)", detail: "Goal met \(stats.daysGoalMet)×", symbol: "trophy")
+                }
+                Text("\(stats.totalRounds) completed rounds across up to 800 retained recorded days. Completed sessions ran their full timer; minutes include stopped sessions. Streaks count consecutive days with a completed session. Timer activity does not measure attention.")
+                    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                if stats.unknownGoalDays > 0 {
+                    Text("\(stats.unknownGoalDays) recorded day\(stats.unknownGoalDays == 1 ? " has" : "s have") an unknown saved goal and \(stats.unknownGoalDays == 1 ? "is" : "are") excluded from Goal met.")
+                        .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 }
                 week(stats)
             } else { ProgressView().frame(maxWidth: .infinity) }
@@ -28,6 +34,10 @@ struct FocusStatsView: View {
                     Label(MenuBuilder.focusLine(focus), systemImage: focus.phase == .focus ? "timer" : "cup.and.saucer")
                         .monospacedDigit().foregroundStyle(.secondary)
                     Spacer()
+                    Button(focus.pausedAt == nil ? "Pause" : "Resume") {
+                        if focus.pausedAt == nil { model.pauseFocus() } else { model.resumeFocus() }
+                    }
+                    .disabled(model.needsRecovery)
                     Button("Stop Focus Session") { model.stopFocus() }
                 } else {
                     Text("\(model.focusSettings.sessions) × \(model.focusSettings.focusMinutes) min focus, \(model.focusSettings.breakMinutes) min color breaks")
@@ -66,18 +76,17 @@ struct FocusStatsView: View {
         }
     }
 
-    /// One series (sessions per day), so one ink color, no legend; the goal is a recessive dashed rule.
+    /// Goal markers use each day's saved goal. Legacy days have no marker.
     private func week(_ stats: FocusStats) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Last 7 days").font(.headline).foregroundStyle(.secondary)
                 Spacer()
                 if let hovered {
-                    Text("\(hovered.label): \(hovered.completed) session\(hovered.completed == 1 ? "" : "s") · \(hours(hovered.minutes))")
+                    Text("\(hovered.label): \(hovered.completed) session\(hovered.completed == 1 ? "" : "s") · \(hours(hovered.minutes)) · goal \(hovered.goal.map(String.init) ?? "unknown")")
                         .font(.caption).monospacedDigit().foregroundStyle(.secondary)
                 } else {
-                    // Keyed here rather than on the plot, so it never collides with bars.
-                    Text("- - -  goal \(stats.goal)").font(.caption).foregroundStyle(.secondary)
+                    Text("◆ saved daily goal").font(.caption).foregroundStyle(.secondary)
                 }
             }
             Chart {
@@ -91,13 +100,17 @@ struct FocusStatsView: View {
                             }
                         }
                         .accessibilityLabel(day.label)
-                        .accessibilityValue("\(day.completed) sessions, \(day.minutes) minutes")
+                        .accessibilityValue("\(day.completed) completed sessions, \(day.minutes) minutes, goal \(day.goal.map(String.init) ?? "unknown")")
+                    if let goal = day.goal {
+                        PointMark(x: .value("Day", day.label), y: .value("Saved goal", goal))
+                            .symbol(.diamond).symbolSize(35)
+                            .foregroundStyle(Color.primary)
+                            .accessibilityLabel("\(day.label) saved goal")
+                            .accessibilityValue("\(goal) sessions")
+                    }
                 }
-                RuleMark(y: .value("Goal", stats.goal))
-                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                    .foregroundStyle(Color.primary.opacity(0.45))
             }
-            .chartYScale(domain: 0...max(stats.goal + 1, (stats.week.map(\.completed).max() ?? 0) + 1))
+            .chartYScale(domain: 0...max((stats.week.compactMap(\.goal).max() ?? 0) + 1, (stats.week.map(\.completed).max() ?? 0) + 1))
             .chartYAxis { AxisMarks(position: .leading, values: .automatic(desiredCount: 4)) { _ in
                 AxisGridLine().foregroundStyle(Color.primary.opacity(0.08)); AxisValueLabel() } }
             .chartXAxis { AxisMarks { _ in AxisValueLabel() } } // no vertical gridlines
@@ -160,7 +173,7 @@ struct FocusSettingsView: View {
             Section("Cues") {
                 Toggle("Play a sound when focus and breaks start", isOn: $model.focusSound)
                 Toggle("Show the countdown in the menu bar", isOn: $model.menuBarCountdown)
-                Text("Changes apply to the next round; a round in progress keeps its timing. Turning E-Ink Mode off ends the round, and minutes already focused still count.")
+                Text("Changes apply to the next round; a round in progress keeps its timing. Pause keeps the current phase and remaining time. Turning E-Ink Mode off ends the round, and active minutes already focused still count.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }

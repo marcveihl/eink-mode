@@ -83,6 +83,14 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     assert run("set", "daily-goal", "6")["configuration"]["focus"]["dailyGoal"] == 6
     run("set", "daily-goal", "4")
     run("focus", "skip", good=False)  # no break yet
+    paused = run("focus", "pause")
+    assert "pausedAt" in paused["state"]["focus"]
+    frozen_end = paused["state"]["focus"]["phaseEnds"]
+    assert run("focus", "pause")["state"]["focus"]["phaseEnds"] == frozen_end
+    assert run("tick")["state"]["focus"]["pausedAt"] == paused["state"]["focus"]["pausedAt"]
+    resumed = run("focus", "resume")
+    assert "pausedAt" not in resumed["state"]["focus"]
+    assert run("focus", "resume")["state"]["focus"]["phaseEnds"] == resumed["state"]["focus"]["phaseEnds"]
     stopped = run("focus", "stop")
     assert "focus" not in stopped["state"] and stopped["system"]["values"] == original
     stats = subprocess.run([binary, "stats"], env=env, text=True, capture_output=True, timeout=15)

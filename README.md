@@ -10,7 +10,7 @@ For macOS 13 Ventura or newer (Apple silicon and Intel) or Windows 10/11 x64 · 
 
 [Download](https://github.com/marcveihl/eink-mode/releases/latest) · [User guide](docs/USER-GUIDE.md) · [Changelog](CHANGELOG.md) · [Roadmap](docs/ROADMAP.md)
 
-<p align="center"><img src="docs/img/menu-on.png" width="375" alt="E-Ink Mode menu with mode toggle, temporary color, focus sessions, and schedule"></p>
+<p align="center"><img src="docs/img/menu-on.png" width="375" alt="E-Ink Mode menu with mode toggle, temporary color, focus sessions, keep display awake, and schedule"></p>
 
 ## What it does
 
@@ -26,7 +26,7 @@ Need to check a photo, a chart, or a color-coded calendar? **Color for 5 Minutes
 
 ### Focus sessions for studying
 
-**Start Focus** runs a round of Pomodoro-style sessions: 25 minutes in grayscale to get into the work, then a 5-minute color break, four times over. The switches happen automatically, a soft sound marks each change, and a countdown sits next to the menu bar icon. You can skip a break, stop early (minutes you already focused still count), or take a quick color peek without pausing the timer.
+**Start Focus** runs a round of Pomodoro-style sessions: 25 minutes in grayscale to get into the work, then a 5-minute color break, four times over. The switches happen automatically, a soft sound marks each change, and a countdown sits next to the menu bar icon. You can pause and resume the current phase without crediting paused time, skip a break, stop early (minutes you already focused still count), or take a quick color peek without pausing the timer.
 
 <p align="center">
   <img src="docs/img/menu-focus.png" width="330" alt="Menu while focusing: Focus 1 of 4 · 18:30 left, Color for 5 Minutes, Stop Focus Session">
@@ -35,7 +35,7 @@ Need to check a photo, a chart, or a color-coded calendar? **Color for 5 Minutes
 
 ### A daily tracker that keeps you going
 
-**Focus Stats** shows today's sessions against a daily goal (4 by default, and you can change it). It also shows your current and best streak, this week, all time, and your best day, with a 7-day chart and a short nudge suited to the moment, like *One more session to reach today's goal*. Your history stays on your Mac.
+**Focus Stats** shows today's completed timer sessions against a daily goal (4 by default, and you can change it). It also shows your current and best streak, this week, retained totals, and your best day, with a 7-day chart and a short nudge suited to the moment, like *One more session to reach today's goal*. Up to 800 recorded days stay on your Mac. Each day's goal is preserved, so changing today's target doesn't rewrite past achievements. Older records with unknown goals are excluded from historical goal counts. These statistics describe timer activity, not measured attention.
 
 <p align="center"><img src="docs/img/focus-stats.png" width="480" alt="Focus Stats: today 3 of 4 sessions, 7-day streak, week and all-time totals, best day, and a 7-day bar chart with the daily goal as a dashed line"></p>
 
@@ -47,6 +47,7 @@ The menu bar icon is **unshaded** while your screen is in color, **shaded** whil
 
 ### And the rest
 
+- **Keep Display Awake:** a switch in the menu that stops the display sleeping and the screen saver starting while you read. It lasts until you switch it off, and quitting always releases it.
 - **Evening schedule:** turn on at 9 PM and off at 7 AM (or your own times). The menu tells you what's next, such as *Turns on tonight at 9:00 PM*, and switching by hand always wins.
 - **Your display always comes back:** your original settings are saved before anything changes. Quitting, logging out, updating, and even a crash all lead back to exactly how your Mac looked before.
 - **Updates built in:** the app checks for new versions and installs them in place.
@@ -57,7 +58,7 @@ See the [user guide](docs/USER-GUIDE.md) for every control, setting, and guarant
 
 Download the ZIP from the [latest release](https://github.com/marcveihl/eink-mode/releases/latest), unzip it, and move **E-Ink Mode.app** to **Applications**.
 
-This beta is not yet notarized. If macOS blocks the app, use **System Settings → Privacy & Security → Open Anyway** after attempting to open it.
+The previously published beta is not yet notarized. The new release pipeline requires Developer ID signing, notarization, and publisher verification; its first signed release still needs clean-Mac validation. Check the release notes for the download you are installing.
 
 Prefer Terminal? Review the [installer](scripts/install.sh), then run:
 
@@ -65,7 +66,7 @@ Prefer Terminal? Review the [installer](scripts/install.sh), then run:
 curl -fsSL https://github.com/marcveihl/eink-mode/releases/latest/download/install.sh | bash
 ```
 
-The installer downloads and installs the app and removes its quarantine attribute. In-app updates are available under **Settings → General**.
+New release installers verify the expected publisher and preserve quarantine. In-app updates are available under **Settings → General**; development copies without a configured publisher identity require manual installation of a signed release.
 
 ## Use
 

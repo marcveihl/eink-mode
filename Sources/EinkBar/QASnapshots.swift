@@ -99,6 +99,10 @@ enum QASnapshots {
                 try? controller.startFocus(sessions: 4, now: Date().addingTimeInterval(-6.5 * 60))
             }),
             ("menu-focus-color", { try? controller.startTemporaryColor(for: 272) }),
+            ("menu-focus-paused", {
+                try? controller.endTemporaryColor()
+                try? controller.pauseFocus()
+            }),
             ("menu-break", {
                 try? controller.stopFocus()
                 try? controller.startFocus(sessions: 4, now: Date().addingTimeInterval(-(25 + 25 + 5 + 0.5) * 60))
@@ -143,10 +147,10 @@ enum QASnapshots {
         let pattern = [4, 6, 0, 5, 8, 3, 0, 7, 6, 9, 0, 2, 5, 0, 6, 8, 4, 7, 5, 3]
         for (offset, sessions) in pattern.enumerated() {
             let date = calendar.date(byAdding: .day, value: -(pattern.count - offset), to: Date())!
-            var day = DayRecord(); day.completed = sessions; day.focusMinutes = sessions * 25; day.rounds = sessions / 4
+            var day = DayRecord(); day.completed = sessions; day.focusMinutes = sessions * 25; day.rounds = sessions / 4; day.dailyGoal = 4
             if sessions > 0 { history.days[FocusHistory.key(date, calendar: calendar)] = day }
         }
-        var today = DayRecord(); today.completed = 3; today.focusMinutes = 75 + 12; today.stopped = 1
+        var today = DayRecord(); today.completed = 3; today.focusMinutes = 75 + 12; today.stopped = 1; today.dailyGoal = 4
         history.days[FocusHistory.key(Date(), calendar: calendar)] = today
         try? Store(directory: EinkEnvironment.directory).write(history, name: "focus-history.json")
     }

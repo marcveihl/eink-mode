@@ -9,7 +9,7 @@ struct LiveMenuItems {
 
 /// Builds the status menu:
 ///   E-Ink Mode · On / Turn off / Color for 5 minutes
-///   Schedule · Until 7:00 AM / Customize appearance… / Settings…
+///   Keep Display Awake / Schedule · Until 7:00 AM / Customize appearance… / Settings…
 ///   Quit and restore display
 enum MenuBuilder {
     static func build(_ menu: NSMenu, model: AppModel, target: AnyObject, live: inout LiveMenuItems) {
@@ -43,8 +43,9 @@ enum MenuBuilder {
         let color = model.colorRemaining
         let loading = model.status == nil
         let focus = model.focus
-        let state = focus.map { $0.phase == .focus ? (color == nil ? "Focusing" : "Focusing, showing color") : "Break, showing color" }
-            ?? (active ? (color == nil ? "On" : "On, showing color") : "Off")
+        let showingColor = color != nil || model.holdingColor
+        let state = focus.map { $0.pausedAt != nil ? ($0.phase == .focus ? (showingColor ? "Focus paused, showing color" : "Focus paused") : "Break paused") : ($0.phase == .focus ? (showingColor ? "Focusing, showing color" : "Focusing") : "Break, showing color") }
+            ?? (active ? (showingColor ? "On, showing color" : "On") : "Off")
         header(menu, loading ? "E-Ink Mode" : "E-Ink Mode · \(state)")
         let shortcut = Shortcut.saved
         let toggle = add(active ? "Turn Off" : "Turn On", active ? #selector(AppDelegate.turnOff) : #selector(AppDelegate.turnOn),
@@ -54,12 +55,15 @@ enum MenuBuilder {
         if let focus {
             live.focus = add(focusLine(focus), nil)
             live.focus?.isEnabled = true
+            _ = add(focus.pausedAt == nil ? "Pause Focus Round" : "Resume Focus Round",
+                    focus.pausedAt == nil ? #selector(AppDelegate.pauseFocus) : #selector(AppDelegate.resumeFocus),
+                    enabled: !model.needsRecovery)
             if focus.phase == .focus {
                 // Everyday options stay available mid-focus: a color peek doesn't pause the round.
                 if let color { live.color = add("Resume grayscale · \(countdown(color)) remaining", #selector(AppDelegate.endColor)) }
                 else { _ = add("Color for 5 Minutes", #selector(AppDelegate.startColor)) }
             } else {
-                _ = add("Skip Break", #selector(AppDelegate.skipBreak))
+                _ = add("Skip Break", #selector(AppDelegate.skipBreak), enabled: !model.needsRecovery)
             }
             _ = add("Stop Focus Session", #selector(AppDelegate.stopFocus))
         } else if active, model.status?.configuration.grayscale == true {
@@ -82,6 +86,10 @@ enum MenuBuilder {
         }
 
         menu.addItem(.separator())
+        let awake = add("Keep Display Awake", #selector(AppDelegate.toggleKeepAwake))
+        awake.state = model.keepAwake ? .on : .off
+        awake.toolTip = "Stops the display sleeping and the screen saver starting. Quitting always releases it."
+        if model.keepAwake { note("Your display stays on until you switch this off.") }
         if let summary = model.schedule {
             let schedule = add("Schedule · \(summary.short)", nil)
             schedule.isEnabled = true
@@ -101,9 +109,10 @@ enum MenuBuilder {
     /// "Focus 2 of 4 · 18:32 left" or "Break · 4:12 left, then focus 3 of 4".
     static func focusLine(_ focus: FocusSession, now: Date = Date()) -> String {
         let left = countdown(focus.remaining(now: now))
-        return focus.phase == .focus
+        let line = focus.phase == .focus
             ? "Focus \(focus.round) of \(focus.rounds) · \(left) left"
             : "Break · \(left) left, then focus \(focus.round + 1) of \(focus.rounds)"
+        return focus.pausedAt == nil ? line : "Paused · \(line)"
     }
 
     private static func header(_ menu: NSMenu, _ title: String) {

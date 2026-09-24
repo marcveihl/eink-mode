@@ -12,7 +12,7 @@ E-Ink Mode
   eink color [minutes]                show color temporarily (default 5), then return to grayscale
   eink grayscale                      end temporary color now
   eink focus [sessions]               start a Pomodoro round: grayscale focus, color breaks
-  eink focus stop | skip              stop the round, or skip the current break
+  eink focus pause | resume | stop | skip
   eink stats                          today's focus progress, streak, and totals
   eink config                         show configuration
   eink set grayscale on|off
@@ -48,6 +48,8 @@ do {
     case "focus":
         switch args.count > 1 ? args[1] : "" {
         case "stop": try controller.stopFocus()
+        case "pause": try controller.pauseFocus()
+        case "resume": try controller.resumeFocus()
         case "skip": try controller.skipBreak()
         case "": try controller.startFocus()
         case let n:
@@ -60,7 +62,8 @@ do {
         Today: \(s.today.completed) of \(s.goal) focus sessions · \(s.today.focusMinutes) min focused
         Streak: \(s.streak) day\(s.streak == 1 ? "" : "s") (best \(s.bestStreak))
         This week: \(s.weekCompleted) sessions · \(s.weekMinutes) min
-        All time: \(s.totalCompleted) sessions · \(s.totalMinutes / 60) h \(s.totalMinutes % 60) min · \(s.totalRounds) rounds
+        Retained history (up to 800 recorded days): \(s.totalCompleted) sessions · \(s.totalMinutes / 60) h \(s.totalMinutes % 60) min · \(s.totalRounds) rounds
+        Goal met: \(s.daysGoalMet) day(s) · \(s.unknownGoalDays) legacy day(s) with unknown goals
         \(s.message)
         """)
         exit(0)

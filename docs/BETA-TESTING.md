@@ -28,6 +28,7 @@ Follow the welcome window.
 
 - Turn E-Ink Mode **on and off** from the menu, then with **⌘⇧E**.
 - Choose **Color for 5 Minutes**. Watch the countdown in the menu, then choose **Resume grayscale** early. Try it again, and let it expire on its own.
+- Choose **Keep Display Awake** and leave your Mac alone for longer than it usually takes to sleep the screen. Did it stay on? Switch it off again.
 - In **Settings → General**, turn on **Click the icon to switch**. Click the icon a few times, then right-click it.
 
 ## 4. Schedule (≈2 min)

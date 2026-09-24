@@ -8,5 +8,5 @@ let package = Package(
         .target(name: "EinkMac", dependencies: ["EinkCore"]),
         .executableTarget(name: "eink", dependencies: ["EinkCore", "EinkMac"]),
         .executableTarget(name: "EinkBar", dependencies: ["EinkCore", "EinkMac"]),
-        .testTarget(name: "EinkCoreTests", dependencies: ["EinkCore"])
+        .testTarget(name: "EinkCoreTests", dependencies: ["EinkCore", "EinkMac"])
     ])

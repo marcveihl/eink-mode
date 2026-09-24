@@ -34,11 +34,16 @@ public struct FocusSession: Codable, Equatable {
     public var rounds: Int
     public var phaseStarted: Date
     public var phaseEnds: Date
+    /// Captured when this round began, for attributing delayed history without inventing a past goal.
+    public var roundStartedAt: Date?
+    public var dailyGoalAtStart: Int?
+    /// A paused phase holds its remaining time and active elapsed time across restarts.
+    public var pausedAt: Date?
     public var focusSeconds: TimeInterval
     public var breakSeconds: TimeInterval
     /// E-Ink Mode was off when the round started, so finishing or stopping turns it off again.
     public var ownsMode: Bool
-    public func remaining(now: Date) -> TimeInterval { max(0, phaseEnds.timeIntervalSince(now)) }
+    public func remaining(now: Date) -> TimeInterval { max(0, phaseEnds.timeIntervalSince(pausedAt ?? now)) }
 }
 
 public struct DayRecord: Codable, Equatable {
@@ -50,6 +55,8 @@ public struct DayRecord: Codable, Equatable {
     public var stopped = 0
     /// Full rounds finished (every session in a round).
     public var rounds = 0
+    /// Goal applicable to this day. Nil for legacy records whose original goal is unknown.
+    public var dailyGoal: Int?
     public init() {}
 }
 
@@ -61,18 +68,23 @@ public struct FocusHistory: Codable, Equatable {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year!, c.month!, c.day!)
     }
-    mutating func update(_ date: Date, calendar: Calendar, _ change: (inout DayRecord) -> Void) {
-        var record = days[Self.key(date, calendar: calendar)] ?? DayRecord()
+    mutating func update(_ date: Date, calendar: Calendar, goal: Int?, _ change: (inout DayRecord) -> Void) {
+        let key = Self.key(date, calendar: calendar)
+        var record = days[key] ?? DayRecord()
+        // The first recorded goal is historical evidence. A delayed timer update or
+        // later configuration change must not rewrite it; explicit edits to today's
+        // goal are handled by Controller.updateLocked.
+        if days[key] == nil { record.dailyGoal = goal }
         change(&record)
-        days[Self.key(date, calendar: calendar)] = record
+        days[key] = record
         // Keep about two years; older days no longer affect streaks or the week view.
-        if days.count > 800, let oldest = days.keys.min() { days.removeValue(forKey: oldest) }
+        while days.count > 800, let oldest = days.keys.min() { days.removeValue(forKey: oldest) }
     }
 }
 
-/// Motivational summary of focus history for today, the week, and all time.
+/// Motivational summary of focus history for today and up to 800 retained recorded days.
 public struct FocusStats: Equatable {
-    public struct Day: Equatable { public var date: Date; public var label: String; public var completed: Int; public var minutes: Int }
+    public struct Day: Equatable { public var date: Date; public var label: String; public var completed: Int; public var minutes: Int; public var goal: Int? }
     public var today: DayRecord
     public var goal: Int
     public var remainingToGoal: Int { max(0, goal - today.completed) }
@@ -88,6 +100,8 @@ public struct FocusStats: Equatable {
     public var totalRounds: Int
     public var bestDay: Int
     public var daysGoalMet: Int
+    /// Legacy recorded days excluded from goal attainment because their goals were never stored.
+    public var unknownGoalDays: Int
     /// One encouraging line chosen from where you are right now.
     public var message: String
 
@@ -115,13 +129,15 @@ public struct FocusStats: Equatable {
         week = (0..<7).reversed().map { offset in
             let date = calendar.date(byAdding: .day, value: -offset, to: todayStart)!
             let r = record(date)
-            return Day(date: date, label: offset == 0 ? "Today" : weekday.string(from: date), completed: r.completed, minutes: r.focusMinutes)
+            return Day(date: date, label: offset == 0 ? "Today" : weekday.string(from: date), completed: r.completed, minutes: r.focusMinutes,
+                       goal: offset == 0 ? goal : r.dailyGoal)
         }
         let all = Array(history.days.values)
         totalCompleted = all.reduce(0) { $0 + $1.completed }
         totalMinutes = all.reduce(0) { $0 + $1.focusMinutes }
         totalRounds = all.reduce(0) { $0 + $1.rounds }
-        daysGoalMet = all.filter { $0.completed >= goal }.count
+        daysGoalMet = all.filter { record in record.dailyGoal.map { record.completed >= $0 } ?? false }.count
+        unknownGoalDays = all.filter { $0.dailyGoal == nil }.count
         let earlierBest = history.days.filter { $0.key != FocusHistory.key(now, calendar: calendar) }.map(\.value.completed).max() ?? 0
         bestDay = max(earlierBest, today.completed)
 

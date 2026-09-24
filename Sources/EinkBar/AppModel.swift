@@ -17,6 +17,7 @@ final class AppModel: ObservableObject {
     @Published var needsRecovery = false
     @Published var loginEnabled = false
     @Published var hotkeyMessage = ""
+    @Published var holdHotkeyMessage = ""
     @Published var update: UpdateState = .idle
     /// Seconds left in the first-run preview, while it runs.
     @Published var previewRemaining: Int?
@@ -37,7 +38,10 @@ final class AppModel: ObservableObject {
     @Published var autoCheckUpdates = UserDefaults.standard.object(forKey: "autoCheckUpdates") as? Bool ?? true {
         didSet { UserDefaults.standard.set(autoCheckUpdates, forKey: "autoCheckUpdates") }
     }
+    /// Whether the display is being held awake right now. Changed through `setKeepAwake`.
+    @Published private(set) var keepAwake = false
     let controller: Controller
+    private let awake = DisplayAwake.shared
     private let work = DispatchQueue(label: "local.eink.operations")
     private var pending = 0
     private var previewTimer: Timer?
@@ -49,12 +53,14 @@ final class AppModel: ObservableObject {
 
     var active: Bool { status?.active == true }
     var colorRemaining: TimeInterval? { status?.temporaryColorRemaining() }
+    var holdingColor: Bool { status?.holdColorActive == true }
     var focus: FocusSession? { status?.focusing == true ? status?.state.focus : nil }
     var focusSettings: FocusSettings { status?.configuration.focus ?? FocusSettings() }
     var schedule: ScheduleStatus? { status.map { ScheduleStatus(configuration: $0.configuration, state: $0.state) } }
     var hasBrightness: Bool { status?.system.values.keys.contains { $0.hasPrefix("brightness:") } == true }
 
     func load() {
+        if UserDefaults.standard.bool(forKey: "keepAwake") { setKeepAwake(true) }
         perform(checkLegacy: false, quiet: true) {
             let status = try self.controller.status()
             DispatchQueue.main.async { self.needsRecovery = status.active }
@@ -100,9 +106,25 @@ final class AppModel: ObservableObject {
         perform { try self.controller.startFocus(sessions: sessions) }
     }
     func stopFocus() { perform { try self.controller.stopFocus() } }
+    func pauseFocus() { perform { try self.controller.pauseFocus() } }
+    func resumeFocus() { perform { try self.controller.resumeFocus() } }
     func skipBreak() { perform { try self.controller.skipBreak() } }
     func startColor(minutes: Double = 5) { perform { try self.controller.startTemporaryColor(for: minutes * 60) } }
     func endColor() { perform { try self.controller.endTemporaryColor() } }
+    func beginHoldColor() {
+        guard !needsRecovery, previewRemaining == nil else { return }
+        perform { try self.controller.beginHoldColor() }
+    }
+    func renewHoldColor() { perform(quiet: true) { try self.controller.renewHoldColor() } }
+    func endHoldColor() { perform(quiet: true) { try self.controller.endHoldColor() } }
+    /// Holds or drops the display-sleep assertion, and remembers the choice for the next launch.
+    /// Quitting always drops it, so nothing is left behind on the Mac.
+    func setKeepAwake(_ on: Bool) {
+        if let problem = awake.hold(on) { error = problem; onUserError?(problem) }
+        keepAwake = awake.held
+        UserDefaults.standard.set(keepAwake, forKey: "keepAwake")
+        changed?()
+    }
     func change(_ update: @escaping (inout Configuration) throws -> Void) { perform { try self.controller.edit(update) } }
     func restoreDisplay() {
         perform {

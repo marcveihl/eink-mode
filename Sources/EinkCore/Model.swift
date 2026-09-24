@@ -113,6 +113,8 @@ public struct Status: Codable {
     public var configuration: Configuration
     public var state: RuntimeState
     public var system: SystemSnapshot
+    /// Ephemeral; reflects this Controller's current physical-key lease, never saved in state.json.
+    public var holdColorActive = false
     public var active: Bool { state.session != nil }
     public var focusing: Bool { active && state.focus != nil }
     public func temporaryColorRemaining(now: Date = Date()) -> TimeInterval? {

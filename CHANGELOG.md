@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased (Focus controls and held color)
+
+- **Hold to show color:** enable a dedicated hold shortcut in Settings → General. Choose Fn/Globe alone or a modifier combination; releasing returns to the current display state without replacing a timed color peek. Fn/Globe keeps its existing macOS action.
+- **Pause/Resume Focus Round:** pause either focus or break time without losing the round or crediting the paused gap. Menu, Focus Stats, and CLI controls share the same persisted state. Automatic sleep/lock pausing is still planned.
+- **Historical goals:** recorded days preserve their goal, older unknown goals remain explicitly unknown, and charts use saved daily targets. Totals describe up to 800 retained recorded days rather than claiming all-time coverage.
+- **Trusted distribution:** release builds require Developer ID signing and accepted notarization. Installers and updates check the expected publisher and preserve quarantine. Credential setup and clean-Mac signed-release validation remain pending.
+- Verified with 89 Swift tests, CLI integration, and offline release guard checks. Fn/Globe hold/release was also confirmed on the local Mac.
+
+## 0.10.0-beta.3 (Keep display awake)
+
+- **Keep Display Awake** in the menu (and **Settings → General → Display sleep**): while it's checked, the display won't sleep and the screen saver won't start, whether or not E-Ink Mode is on. Useful for reading a long page without touching the keyboard.
+- It lasts until you switch it off and is remembered for the next launch. macOS ties the hold to the running app, so quitting, logging out, or a crash releases it — nothing is left behind. Closing the lid still sleeps the Mac.
+
+- **Click-to-flip is harder to miss:** the icon now has to be held for about a second before the menu takes over, so a slow, deliberate click still switches the mode. Right-click and Control-click open the menu immediately, as before. A tap that slides a few points off the icon still counts, so trackpad taps land more often.
+
 ## 0.10.0-beta.2 (Icon parity)
 
 - **One rule for the menu bar icon:** unshaded while your screen is in color (off), shaded while it's grayscale (on or focusing), and half-shaded during temporary color (a color peek or a focus break). The standard dot is now ○ / ● / ◐, and Wildcat mode matches it. Focus sessions no longer swap in timer or cup symbols; the countdown beside the icon shows a round is running.

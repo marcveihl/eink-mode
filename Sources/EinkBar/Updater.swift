@@ -4,6 +4,11 @@ import EinkMac
 
 /// Checks GitHub Releases and installs a newer app archive in place.
 enum Updater {
+    /// Signed into the installed bundle at build time; never read from an incoming archive.
+    static var expectedTeamID: String? {
+        (Bundle.main.object(forInfoDictionaryKey: "EinkExpectedTeamID") as? String)
+            .flatMap { $0.range(of: "^[A-Z0-9]{10}$", options: .regularExpression) == nil ? nil : $0 }
+    }
     static var feed: URL? {
         (Bundle.main.object(forInfoDictionaryKey: "EinkReleasesURL") as? String).flatMap(URL.init(string:))
     }
@@ -34,6 +39,12 @@ enum Updater {
             return completion(EinkError.message("This release has no app download."))
         }
         let target = Bundle.main.bundleURL
+        guard let teamID = expectedTeamID else {
+            return completion(EinkError.message("This copy has no trusted publisher identity. Install a signed release manually."))
+        }
+        guard let current = currentVersion, expected > current else {
+            return completion(EinkError.message("The offered update is not newer than the installed version."))
+        }
         guard FileManager.default.isWritableFile(atPath: target.deletingLastPathComponent().path) else {
             return completion(EinkError.message("E-Ink Mode can't replace itself in \(target.deletingLastPathComponent().path). Download the update from the release page instead."))
         }
@@ -51,7 +62,10 @@ enum Updater {
                 guard bundle.bundleIdentifier == Bundle.main.bundleIdentifier else { throw EinkError.message("The download is a different app.") }
                 guard let version = (bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String).flatMap(AppVersion.init),
                       version == expected else { throw EinkError.message("The download's version doesn't match the release.") }
+                let requirement = "anchor apple generic and certificate leaf[subject.OU] = \"\(teamID)\" and identifier \"local.eink.mode\""
                 try run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
+                try run("/usr/bin/codesign", ["--verify", "--strict", "-R=\(requirement)", app.path])
+                try run("/usr/sbin/spctl", ["--assess", "--type", "execute", app.path])
                 try relaunch(replacing: target, with: app, arguments: relaunchActive ? ["--activate"] : [])
                 finish(nil)
             } catch { finish(error) }
