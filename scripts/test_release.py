@@ -6,6 +6,7 @@ import plistlib
 import shutil
 import subprocess
 import tempfile
+import hashlib
 
 repo = pathlib.Path(__file__).resolve().parent.parent
 env = {key: value for key, value in os.environ.items() if not key.startswith("EINK_")}
@@ -20,6 +21,9 @@ for script in ("build.sh", "release.sh"):
     result = run("/bin/bash", str(repo / "scripts" / script),
                  env=dict(env, EINK_DISTRIBUTION="1"))
     assert result.returncode != 0 and "requires" in result.stderr.lower(), result
+    result = run("/bin/bash", str(repo / "scripts" / script),
+                 env=dict(env, EINK_UNSIGNED_BETA="1", EINK_SIGN_IDENTITY="conflicting-identity"))
+    assert result.returncode != 0 and "Do not combine" in result.stderr, result
 
 with tempfile.TemporaryDirectory(prefix="eink-release-qa-") as directory:
     root = pathlib.Path(directory)
@@ -42,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix="eink-release-qa-") as directory:
     executable.chmod(0o755)
     info = {"CFBundleIdentifier": "local.eink.mode", "CFBundleExecutable": "EinkBar",
             "CFBundleName": "E-Ink Mode", "CFBundlePackageType": "APPL",
-            "CFBundleVersion": "999", "CFBundleShortVersionString": "99.0.0"}
+            "CFBundleVersion": "999", "CFBundleShortVersionString": "99.0.0-beta.1"}
     (candidate / "Contents/Info.plist").write_bytes(plistlib.dumps(info))
     result = run("/usr/bin/codesign", "--force", "--sign", "-", str(candidate))
     assert result.returncode == 0, result
@@ -58,4 +62,22 @@ with tempfile.TemporaryDirectory(prefix="eink-release-qa-") as directory:
     assert marker.read_text() == "keep this installed app"
     assert list(destination.iterdir()) == [installed]
 
-print("Release guards passed: missing credentials, unconfigured trust anchor, and valid ad hoc signature rejected without replacing installed app")
+    # The explicit beta installer accepts only the archive digest embedded at build time.
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    beta_installer = root / "install-beta.sh"
+    beta_installer.write_text((repo / "scripts/install.sh").read_text()
+                              .replace("__EINK_BETA_SHA256__", digest)
+                              .replace("__EINK_BETA_VERSION__", "99.0.0-beta.1"))
+    tampered = root / "tampered.zip"
+    tampered.write_bytes(archive.read_bytes() + b"changed")
+    result = run("/bin/bash", str(beta_installer), str(tampered), env=installer_env)
+    assert result.returncode != 0 and "checksum does not match" in result.stderr, result
+    assert marker.read_text() == "keep this installed app"
+
+    result = run("/bin/bash", str(beta_installer), str(archive), env=installer_env)
+    assert result.returncode == 0, result
+    assert (installed / "Contents/MacOS/EinkBar").is_file()
+    result = run("/bin/bash", str(beta_installer), str(archive), env=installer_env)
+    assert result.returncode != 0 and "not newer" in result.stderr, result
+
+print("Release guards passed: signed path fails closed; explicit unsigned beta verifies its pinned archive, rejects tampering and repeated install")

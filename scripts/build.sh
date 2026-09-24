@@ -9,7 +9,14 @@ export CLANG_MODULE_CACHE_PATH="$PWD/.build/ModuleCache"
 VERSION="$(tr -d '[:space:]' < VERSION)"
 BUILD="$(git rev-list --count HEAD 2>/dev/null || echo 1)"
 REPO="${EINK_REPO:-marcveihl/eink-mode}"
-if [ "${EINK_DISTRIBUTION:-0}" = 1 ]; then
+UNSIGNED_BETA="${EINK_UNSIGNED_BETA:-0}"
+if [ "$UNSIGNED_BETA" = 1 ]; then
+  case "$VERSION" in *-beta.*) ;; *) echo "Unsigned distribution is limited to beta versions." >&2; exit 1;; esac
+  [ -z "${EINK_SIGN_IDENTITY:-}${EINK_TEAM_ID:-}${EINK_NOTARY_PROFILE:-}" ] || {
+    echo "Do not combine EINK_UNSIGNED_BETA with signing credentials." >&2; exit 1;
+  }
+fi
+if [ "${EINK_DISTRIBUTION:-0}" = 1 ] && [ "$UNSIGNED_BETA" != 1 ]; then
   [ -n "${EINK_SIGN_IDENTITY:-}" ] && [ -n "${EINK_NOTARY_PROFILE:-}" ] && [ -n "${EINK_TEAM_ID:-}" ] || {
     echo "Distribution requires EINK_SIGN_IDENTITY, EINK_TEAM_ID, and EINK_NOTARY_PROFILE." >&2; exit 1;
   }
@@ -86,7 +93,10 @@ if [ -n "${EINK_NOTARY_PROFILE:-}" ]; then
   rm -f "$ZIP"; ditto -c -k --keepParent "$APP" "$ZIP"
 fi
 (cd dist && shasum -a 256 "$(basename "$ZIP")" > "$(basename "$ZIP").sha256")
-if [ -n "${EINK_TEAM_ID:-}" ]; then
+if [ "$UNSIGNED_BETA" = 1 ]; then
+  beta_sha="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
+  sed -e "s/__EINK_BETA_SHA256__/$beta_sha/g" -e "s/__EINK_BETA_VERSION__/$VERSION/g" scripts/install.sh > dist/install.sh
+elif [ -n "${EINK_TEAM_ID:-}" ]; then
   sed "s/__EINK_TEAM_ID__/$EINK_TEAM_ID/g" scripts/install.sh > dist/install.sh
 else
   cp scripts/install.sh dist/install.sh

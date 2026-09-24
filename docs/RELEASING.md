@@ -22,6 +22,10 @@ Windows has its own, earlier-stage beta track, kept deliberately invisible to th
 
 Local `./scripts/build.sh` builds may use an ad hoc signature for development. `./scripts/release.sh` refuses to publish without a Developer ID identity, its 10-character Team ID, and a notarytool keychain profile. The installer and updater only accept the pinned publisher. Neither removes quarantine.
 
+### Explicit unsigned beta exception
+
+For the signing-deferred beta track, run `EINK_UNSIGNED_BETA=1 ./scripts/release.sh`. This is allowed only for a version containing `-beta.` and cannot be combined with signing credentials. The app is ad hoc signed and unnotarized. Its generated installer pins the exact ZIP SHA-256 and beta version, verifies signature integrity, and preserves quarantine; it does not claim an Apple-verified publisher. Browser downloads may require **Open Anyway** in Privacy & Security. Install future releases manually until Developer ID signing is configured. Without this explicit option, the signed-release requirements above still apply.
+
 For Gatekeeper-clean builds, you need an Apple Developer Program membership:
 
 ```sh

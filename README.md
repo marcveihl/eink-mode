@@ -58,7 +58,7 @@ See the [user guide](docs/USER-GUIDE.md) for every control, setting, and guarant
 
 Download the ZIP from the [latest release](https://github.com/marcveihl/eink-mode/releases/latest), unzip it, and move **E-Ink Mode.app** to **Applications**.
 
-The previously published beta is not yet notarized. The new release pipeline requires Developer ID signing, notarization, and publisher verification; its first signed release still needs clean-Mac validation. Check the release notes for the download you are installing.
+Beta.3 is not Developer ID signed or notarized. If macOS blocks a browser download, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway**. Signing is deferred until a later release.
 
 Prefer Terminal? Review the [installer](scripts/install.sh), then run:
 
@@ -66,7 +66,7 @@ Prefer Terminal? Review the [installer](scripts/install.sh), then run:
 curl -fsSL https://github.com/marcveihl/eink-mode/releases/latest/download/install.sh | bash
 ```
 
-New release installers verify the expected publisher and preserve quarantine. In-app updates are available under **Settings → General**; development copies without a configured publisher identity require manual installation of a signed release.
+This beta's installer verifies the exact archive checksum and signature integrity and preserves quarantine. Install future updates using the download or installer command while signing is deferred; the in-app installer requires a configured publisher identity.
 
 ## Use
 

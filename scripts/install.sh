@@ -6,17 +6,28 @@ set -euo pipefail
 REPO="${EINK_REPO:-marcveihl/eink-mode}"
 APP_NAME="E-Ink Mode.app"
 EXPECTED_TEAM_ID="__EINK_TEAM_ID__"
+BETA_ARCHIVE_SHA256="__EINK_BETA_SHA256__"
+BETA_VERSION="__EINK_BETA_VERSION__"
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 fail() { printf '\033[31mError:\033[0m %s\n' "$*" >&2; exit 1; }
 
 [ "$(uname)" = "Darwin" ] || fail "E-Ink Mode runs on macOS only."
 major="$(sw_vers -productVersion | cut -d. -f1)"
 [ "$major" -ge 13 ] || fail "E-Ink Mode needs macOS 13 Ventura or newer."
-[ "${#EXPECTED_TEAM_ID}" -eq 10 ] && [[ "$EXPECTED_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || fail "This installer has no pinned publisher identity. Download a signed release installer."
+unsigned_beta=0
+if [[ "$BETA_ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+  case "$BETA_VERSION" in *-beta.*) unsigned_beta=1 ;; *) fail "Invalid unsigned beta version.";; esac
+  say "Installing an unsigned beta; Developer ID signing and notarization are deferred."
+else
+  [ "${#EXPECTED_TEAM_ID}" -eq 10 ] && [[ "$EXPECTED_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || fail "This installer has no pinned publisher identity. Download a signed release installer."
+fi
 
 work="$(mktemp -d)"; trap 'rm -rf "$work"' EXIT
 if [ $# -ge 1 ] && [ -f "$1" ]; then
   zip="$1"
+elif [ "$unsigned_beta" = 1 ]; then
+  zip="$work/app.zip"
+  curl -fL --progress-bar "https://github.com/$REPO/releases/download/v$BETA_VERSION/E-Ink-Mode-$BETA_VERSION.zip" -o "$zip" || fail "Download failed."
 else
   say "Finding the latest release…"
   curl -fsSL -H "Accept: application/vnd.github+json" "https://api.github.com/repos/$REPO/releases?per_page=20" -o "$work/releases.json" \
@@ -36,6 +47,10 @@ else
   curl -fL --progress-bar "$url" -o "$zip" || fail "Download failed."
 fi
 
+if [ "$unsigned_beta" = 1 ]; then
+  archive_sha="$(shasum -a 256 "$zip" | awk '{print $1}')"
+  [ "$archive_sha" = "$BETA_ARCHIVE_SHA256" ] || fail "The beta archive checksum does not match this installer; not installing."
+fi
 ditto -x -k "$zip" "$work/unpacked" || fail "The download is damaged. Try again."
 [ -d "$work/unpacked/$APP_NAME" ] || fail "The archive doesn't contain $APP_NAME."
 candidate="$work/unpacked/$APP_NAME"
@@ -43,10 +58,13 @@ identifier="$(plutil -extract CFBundleIdentifier raw -o - "$candidate/Contents/I
 [ "$identifier" = local.eink.mode ] || fail "The archive contains a different app."
 requirement="anchor apple generic and certificate leaf[subject.OU] = \"$EXPECTED_TEAM_ID\" and identifier \"local.eink.mode\""
 codesign --verify --deep --strict "$candidate" || fail "The app's signature is invalid; not installing."
-codesign --verify --strict -R="$requirement" "$candidate" || fail "The app is not signed by the expected publisher; not installing."
-spctl --assess --type execute "$candidate" || fail "macOS did not accept the app for opening; not installing."
+if [ "$unsigned_beta" != 1 ]; then
+  codesign --verify --strict -R="$requirement" "$candidate" || fail "The app is not signed by the expected publisher; not installing."
+  spctl --assess --type execute "$candidate" || fail "macOS did not accept the app for opening; not installing."
+fi
 version="$(plutil -extract CFBundleShortVersionString raw -o - "$candidate/Contents/Info.plist" 2>/dev/null)" || fail "The app has no version."
 [ -n "$version" ] || fail "The app has no version."
+[ "$unsigned_beta" != 1 ] || [ "$version" = "$BETA_VERSION" ] || fail "The app version does not match this beta installer."
 
 # Quit a running copy. It restores the display before exiting. (EINK_NO_LAUNCH=1 is for tests.)
 pids=""; [ "${EINK_NO_LAUNCH:-}" = 1 ] || pids="$(pgrep -f "/$APP_NAME/Contents/MacOS/EinkBar" || true)"
@@ -75,5 +93,8 @@ if ! mv "$candidate" "$dest/$APP_NAME"; then
   fail "Could not install the app; the previous copy was restored."
 fi
 if [ -e "$backup" ]; then rm -rf "$backup"; fi
+if [ "$unsigned_beta" = 1 ]; then
+  say "If macOS blocks opening, use System Settings → Privacy & Security → Open Anyway."
+fi
 [ "${EINK_NO_LAUNCH:-}" = 1 ] || open "$dest/$APP_NAME"
 say "Done. Look for the ○ icon in your menu bar (top-right of the screen)."

@@ -17,9 +17,9 @@ The script downloads the latest version, checks it, quits any older copy (restor
 
 1. Download `E-Ink-Mode-<version>.zip` from the [latest release](https://github.com/marcveihl/eink-mode/releases) and double-click it to unzip.
 2. Drag **E-Ink Mode** into your **Applications** folder.
-3. Double-click it. Signed, notarized releases should open without Gatekeeper workarounds. The previously published beta is not notarized; check the release notes for your download. The first release from the new signing pipeline still needs clean-Mac validation.
+3. Double-click it. Beta.3 is not Developer ID signed or notarized. If macOS blocks it, use **System Settings → Privacy & Security → Open Anyway** after attempting to open it.
 
-New release installers and in-app updates verify the expected publisher before replacing the app and preserve quarantine. Development copies without a configured publisher identity require manual installation of a signed release.
+This beta's installer verifies its exact archive checksum and signature integrity and preserves quarantine. Install future updates manually using the download or installer command while signing is deferred; the in-app installer requires a configured publisher identity.
 </details>
 
 If you open the app from Downloads, it offers to **move itself into Applications**. Say yes: launch-at-login and updates work reliably only from there. If you open the app while it's already running, the running copy shows you where it lives instead of starting a second one. If the two copies are different versions, you choose which one to keep.
@@ -210,7 +210,7 @@ E-Ink Mode has no accounts, analytics, or tracking. Update checks contact GitHub
 
 ## Known limitations
 
-- **Beta signing:** the previously published beta is not notarized. The new release pipeline requires signing and notarization, with the first signed release still awaiting clean-Mac validation. Check your release notes; the new installer does not remove quarantine.
+- **Beta signing:** beta.3 remains ad hoc signed and unnotarized. Browser downloads may require **Open Anyway**; the installer preserves quarantine. Developer ID signing and notarization are deferred.
 - **Warm colors:** use Night Shift or f.lux. E-Ink Mode leaves warmth to them.
 - **Notifications:** E-Ink Mode doesn't change Focus or Do Not Disturb, because macOS gives apps no reliable way to restore them.
 - **Brightness** works only on displays that let macOS control it.
