@@ -1,0 +1,5 @@
+pystray
+pillow
+pywin32
+tzdata
+tzlocal
