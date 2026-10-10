@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import EinkCore
 import EinkMac
@@ -9,6 +10,7 @@ struct SettingsView: View {
     @ObservedObject var model: AppModel
     @ObservedObject var navigation: SettingsNavigation
     let actions: SettingsActions
+    private var generalHeight: CGFloat { min(560, max(300, (NSScreen.main?.visibleFrame.height ?? 800) - 160)) }
     var body: some View {
         VStack(spacing: 0) {
             Picker("Section", selection: $navigation.tab) {
@@ -27,7 +29,8 @@ struct SettingsView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .scrollDisabled(true)
+            .scrollDisabled(navigation.tab != .general)
+            .frame(height: navigation.tab == .general ? generalHeight : nil)
         }
         .frame(width: 480)
         .fixedSize(horizontal: false, vertical: true)
@@ -194,10 +197,9 @@ struct GeneralSettings: View {
     @AppStorage("holdPeekEnabled") private var holdPeekEnabled = false
     var body: some View {
         Form {
-            Section("Menu bar icon") {
-                Toggle("Click the icon to switch E-Ink Mode on and off", isOn: $model.clickToFlip)
-                Hint(model.clickToFlip ? "Click the icon to switch. Right-click or Control-click for the menu, or hold the icon for a second."
-                                       : "Click the icon to open the menu.")
+            Section("Behavior") {
+                Toggle("Click icon to toggle E-Ink Mode", isOn: $model.clickToFlip)
+                    .help("When enabled, click to switch; right-click, Control-click, or hold for a second to open the menu.")
                 Toggle(isOn: $model.wildcatMode) {
                     HStack(spacing: 10) {
                         Text("Wildcat mode")
@@ -208,56 +210,65 @@ struct GeneralSettings: View {
                         }.foregroundStyle(.secondary)
                     }
                 }
-                Hint("Swaps the dot for a wildcat. Both follow the same rule: unshaded in color, shaded in grayscale, half-shaded during temporary color. Go 'Cats!")
-            }
-            Section("Display sleep") {
+                .help("Use a wildcat instead of the dot. Its shading follows your display's grayscale state.")
                 Toggle("Keep the display awake", isOn: Binding(get: { model.keepAwake }, set: model.setKeepAwake))
-                Hint("Stops the display sleeping and the screen saver starting — useful while reading. Also in the menu. It lasts until you switch it off; quitting E-Ink Mode releases it. On battery, expect a shorter charge.")
+                    .help("Prevents display sleep and the screen saver while the app is running. Uses more battery; quitting releases it.")
+                Toggle("Open at login", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))
+                    .help("Keeps schedules available. Opening the app does not turn E-Ink Mode on by itself.")
             }
-            Section("Keyboard shortcut") {
+            Section("Keyboard shortcuts") {
                 Picker("Switch on and off", selection: Binding(get: { shortcut }, set: { shortcut = $0; actions.setShortcut($0) })) {
                     ForEach(Shortcut.presets) { Text($0.symbol).tag($0.id) }
                     Text("None").tag(Shortcut.none)
                 }
-                Hint(model.hotkeyMessage)
-                Toggle("Hold to show color", isOn: Binding(get: { holdPeekEnabled }, set: { holdPeekEnabled = $0; actions.setHoldEnabled($0) }))
-                Picker("Hold color shortcut", selection: Binding(get: { holdShortcut }, set: { holdShortcut = $0; actions.setHoldShortcut($0) })) {
-                    ForEach(Shortcut.holdPresets) { Text($0.symbol).tag($0.id) }
-                }.disabled(!holdPeekEnabled)
-                Hint("While E-Ink Mode is on, press and hold the chosen keys for color. Release them to return to the current focus phase or timed color peek. The normal on/off shortcut stays separate.")
-                if holdPeekEnabled { Hint(model.holdHotkeyMessage) }
+                .help(model.hotkeyMessage)
+                if model.hotkeyMessage.contains("already") { Hint(model.hotkeyMessage) }
+                HStack {
+                    Toggle("Hold to show color", isOn: Binding(get: { holdPeekEnabled }, set: { holdPeekEnabled = $0; actions.setHoldEnabled($0) }))
+                        .toggleStyle(.checkbox)
+                    Spacer()
+                    Picker("Hold color shortcut", selection: Binding(get: { holdShortcut }, set: { holdShortcut = $0; actions.setHoldShortcut($0) })) {
+                        ForEach(Shortcut.holdPresets) { Text($0.symbol).tag($0.id) }
+                    }
+                    .labelsHidden().fixedSize().disabled(!holdPeekEnabled)
+                }
+                .help("Hold the chosen keys for color while E-Ink Mode is on. Release to return to your current display state.")
+                if holdPeekEnabled, model.holdHotkeyMessage.contains("already") { Hint(model.holdHotkeyMessage) }
                 if holdPeekEnabled, holdShortcut == Shortcut.functionKeyID {
                     Hint("If Globe also opens emoji or changes input sources, choose “Do Nothing” for “Press 🌐 key to” in macOS System Settings → Keyboard.")
                 }
             }
-            Section("Startup") {
-                Toggle("Open E-Ink Mode at login", isOn: Binding(get: { model.loginEnabled }, set: model.setLogin))
-                Hint("Needed for schedules. Opening the app never turns E-Ink Mode on by itself.")
-            }
-            Section("Updates") {
-                LabeledContent("Version", value: EinkEnvironment.version)
-                Toggle("Check for updates automatically", isOn: $model.autoCheckUpdates)
+            Section("Updates and help") {
                 HStack {
+                    Text("Version \(EinkEnvironment.version)")
+                    Spacer()
                     switch model.update {
                     case .available(let release):
                         Text("\(release.tagName) is available").foregroundStyle(.blue)
                         Spacer(); Button("Install and Relaunch", action: actions.installUpdate)
                     case .checking: Text("Checking…").foregroundStyle(.secondary); Spacer()
                     case .installing: Text("Downloading update…").foregroundStyle(.secondary); Spacer()
-                    case .upToDate: Text("You're up to date.").foregroundStyle(.secondary); Spacer()
+                    case .upToDate: Text("Up to date").font(.caption).foregroundStyle(.secondary)
                         Button("Check Now", action: actions.checkForUpdates)
                     case .failed(let message): Text(message).font(.caption).foregroundStyle(.red); Spacer()
                         Button("Try Again", action: actions.checkForUpdates)
                     case .idle: Spacer(); Button("Check Now", action: actions.checkForUpdates)
                     }
                 }
-            }
-            Section("Help") {
+                Toggle("Check for updates automatically", isOn: $model.autoCheckUpdates)
                 HStack {
                     Button("Show Welcome Guide", action: actions.showWelcome)
                     Button("Restore Display Now") { model.restoreDisplay() }.disabled(!model.active && !model.needsRecovery)
                 }
-                Hint("Quitting always restores your display. From Terminal: “\(appPath)/Contents/MacOS/eink off”.")
+                DisclosureGroup("Tips and details") {
+                    Hint("Click-to-toggle: right-click, Control-click, or hold the icon for a second to open the menu.")
+                    Hint("Keep awake prevents display sleep and the screen saver while this app is running. Uses more battery; quitting releases it.")
+                    Hint("Open at login keeps schedules available without turning E-Ink Mode on by itself.")
+                    if !model.hotkeyMessage.isEmpty { Hint(model.hotkeyMessage) }
+                    Hint("Hold the color shortcut while E-Ink Mode is on; release to return to your current focus phase or color peek.")
+                    if holdPeekEnabled { Hint(model.holdHotkeyMessage) }
+                    Hint("Quitting always restores your display. From Terminal: “\(appPath)/Contents/MacOS/eink off”.")
+                }
             }
         }
         .formStyle(.grouped)

@@ -6,6 +6,7 @@
 - **Independent display controls:** turning E-Ink Mode off, using the mode shortcut, or changing the grayscale appearance setting keeps the Pomodoro timer running and releases automatic display switching for that round. Only Stop Focus Session or quitting ends it early.
 - Timer-only rounds retain pause/resume, break skipping, restart recovery, completion history, and countdowns. The menu bar icon follows the actual grayscale state.
 - CLI: `eink set focus-grayscale on|off` configures future rounds.
+- **Compact General settings:** group everyday preferences, keep the hold-color shortcut beside its toggle, and tuck longer explanations into tooltips and expandable tips. The window stays within the screen height and scrolls when more space is needed.
 
 ## 0.10.0-beta.3 (Focus controls and held color)
 

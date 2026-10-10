@@ -179,6 +179,8 @@ Everything beyond grayscale is optional and **off by default**. Changes apply im
 - **Updates:** shows your **version** and checks for new versions automatically. When an update is available, it also appears in the menu. **Install and Relaunch** restores your display, installs the update, and reopens the app, back on if it was on.
 - **Help:** reopen the welcome guide, or **Restore Display Now**.
 
+General settings groups everyday preferences under **Behavior**. Hover over a control for a short explanation, or expand **Tips and details** for more help. The pane scrolls when expanded tips or shortcut warnings need extra space.
+
 ## Restoring your display
 
 Changing someone's screen needs to be trustworthy. E-Ink Mode records your original settings on disk **before** it changes anything, and it only uses settings it can read back and restore.
