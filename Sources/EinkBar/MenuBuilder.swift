@@ -43,7 +43,7 @@ enum MenuBuilder {
         let color = model.colorRemaining
         let loading = model.status == nil
         let focus = model.focus
-        let showingColor = color != nil || model.holdingColor
+        let showingColor = !model.isGrayscale
         let state = focus.map { $0.pausedAt != nil ? ($0.phase == .focus ? (showingColor ? "Focus paused, showing color" : "Focus paused") : "Break paused") : ($0.phase == .focus ? (showingColor ? "Focusing, showing color" : "Focusing") : "Break, showing color") }
             ?? (active ? (showingColor ? "On, showing color" : "On") : "Off")
         header(menu, loading ? "E-Ink Mode" : "E-Ink Mode · \(state)")
@@ -58,12 +58,13 @@ enum MenuBuilder {
             _ = add(focus.pausedAt == nil ? "Pause Focus Round" : "Resume Focus Round",
                     focus.pausedAt == nil ? #selector(AppDelegate.pauseFocus) : #selector(AppDelegate.resumeFocus),
                     enabled: !model.needsRecovery)
-            if focus.phase == .focus {
+            if focus.phase == .rest {
+                _ = add("Skip Break", #selector(AppDelegate.skipBreak), enabled: !model.needsRecovery)
+            }
+            if active, (focus.controlsGrayscale ? focus.phase == .focus : model.status?.configuration.grayscale == true) {
                 // Everyday options stay available mid-focus: a color peek doesn't pause the round.
                 if let color { live.color = add("Resume grayscale · \(countdown(color)) remaining", #selector(AppDelegate.endColor)) }
                 else { _ = add("Color for 5 Minutes", #selector(AppDelegate.startColor)) }
-            } else {
-                _ = add("Skip Break", #selector(AppDelegate.skipBreak), enabled: !model.needsRecovery)
             }
             _ = add("Stop Focus Session", #selector(AppDelegate.stopFocus))
         } else if active, model.status?.configuration.grayscale == true {

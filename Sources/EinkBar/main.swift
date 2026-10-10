@@ -120,13 +120,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if model.error != nil || model.needsRecovery { shade = nil; label = "E-Ink Mode needs attention" }
         else if let focus = model.focus {
             // Same shading as everywhere else; the countdown beside the icon shows a round is running.
-            shade = focus.phase == .rest || model.colorRemaining != nil || model.holdingColor ? .half : .shaded
+            shade = model.isGrayscale ? .shaded : (model.showingTemporaryColor ? .half : .unshaded)
             label = model.holdingColor ? "\(MenuBuilder.focusLine(focus)) — showing color while held" : MenuBuilder.focusLine(focus)
             if model.menuBarCountdown { countdownText = focus.pausedAt == nil ? countdown(focus.remaining(now: Date())) : "Paused" }
         }
         else if model.holdingColor { shade = .half; label = "E-Ink Mode — showing color while held" }
         else if let left = model.colorRemaining { shade = .half; label = "E-Ink Mode — color for \(countdown(left))" }
-        else if model.active { shade = .shaded; label = "E-Ink Mode is on" }
+        else if model.active { shade = model.isGrayscale ? .shaded : .unshaded; label = "E-Ink Mode is on" }
         else { shade = .unshaded; label = "E-Ink Mode is off" }
         if let shade, model.wildcatMode { button.image = WildcatIcon.image(shade.wildcat, accessibility: label) }
         else { button.image = NSImage(systemSymbolName: shade?.symbol ?? "exclamationmark.circle", accessibilityDescription: label) }
@@ -247,9 +247,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard previous?.phase != current?.phase || previous?.round != current?.round else { return }
         let message: String, sound: String
         switch (previous, current) {
-        case (nil, let now?): message = "Focus \(now.round) of \(now.rounds) — \(Int(now.focusSeconds / 60)) minutes in grayscale."; sound = "Tink"
+        case (nil, let now?): message = "Focus \(now.round) of \(now.rounds) — \(Int(now.focusSeconds / 60)) minutes\(now.controlsGrayscale ? " in grayscale" : "")."; sound = "Tink"
         case (_, let now?) where now.phase == .rest:
-            message = "Break time — color is on for \(Int(now.breakSeconds / 60)) minutes."; sound = "Glass"
+            message = "Break time — \(Int(now.breakSeconds / 60)) minutes\(now.controlsGrayscale && model.active ? " in color" : "")."; sound = "Glass"
         case (_, let now?): message = "Back to focus · session \(now.round) of \(now.rounds)."; sound = "Tink"
         case (let was?, nil):
             guard let stats = model.stats else { return }

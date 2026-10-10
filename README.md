@@ -26,7 +26,7 @@ Need to check a photo, a chart, or a color-coded calendar? **Color for 5 Minutes
 
 ### Focus sessions for studying
 
-**Start Focus** runs a round of Pomodoro-style sessions: 25 minutes in grayscale to get into the work, then a 5-minute color break, four times over. The switches happen automatically, a soft sound marks each change, and a countdown sits next to the menu bar icon. You can pause and resume the current phase without crediting paused time, skip a break, stop early (minutes you already focused still count), or take a quick color peek without pausing the timer.
+**Start Focus** runs a round of Pomodoro-style sessions: 25 minutes of focus, then a 5-minute break, four times over. By default, the timers leave your display alone. Enable **Settings → Focus → Use grayscale during focus** for automatic grayscale focus and color breaks. A soft sound marks each phase change, and a countdown sits next to the menu bar icon. You can pause and resume, skip a break, or stop early (minutes you already focused still count). Changing grayscale or turning E-Ink Mode off keeps the timer running and releases automatic display switching for that round.
 
 <p align="center">
   <img src="docs/img/menu-focus.png" width="330" alt="Menu while focusing: Focus 1 of 4 · 18:30 left, Color for 5 Minutes, Stop Focus Session">
@@ -58,7 +58,7 @@ See the [user guide](docs/USER-GUIDE.md) for every control, setting, and guarant
 
 Download the ZIP from the [latest release](https://github.com/marcveihl/eink-mode/releases/latest), unzip it, and move **E-Ink Mode.app** to **Applications**.
 
-Beta.3 is not Developer ID signed or notarized. If macOS blocks a browser download, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway**. Signing is deferred until a later release.
+Beta.4 is not Developer ID signed or notarized. If macOS blocks a browser download, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway**. Signing is deferred until a later release.
 
 Prefer Terminal? Review the [installer](scripts/install.sh), then run:
 

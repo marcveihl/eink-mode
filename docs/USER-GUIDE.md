@@ -17,7 +17,7 @@ The script downloads the latest version, checks it, quits any older copy (restor
 
 1. Download `E-Ink-Mode-<version>.zip` from the [latest release](https://github.com/marcveihl/eink-mode/releases) and double-click it to unzip.
 2. Drag **E-Ink Mode** into your **Applications** folder.
-3. Double-click it. Beta.3 is not Developer ID signed or notarized. If macOS blocks it, use **System Settings → Privacy & Security → Open Anyway** after attempting to open it.
+3. Double-click it. Beta.4 is not Developer ID signed or notarized. If macOS blocks it, use **System Settings → Privacy & Security → Open Anyway** after attempting to open it.
 
 This beta's installer verifies its exact archive checksum and signature integrity and preserves quarantine. Install future updates manually using the download or installer command while signing is deferred; the in-app installer requires a configured publisher identity.
 </details>
@@ -66,7 +66,7 @@ The icon's shading tells you what your screen is doing. The same rule applies to
 | Icon | Dot | Wildcat | Your screen |
 |---|---|---|---|
 | **Unshaded** | ○ | outlined | In color. E-Ink Mode is off. |
-| **Shaded** | ● | filled | Grayscale. E-Ink Mode is on, or you're in a focus session. |
+| **Shaded** | ● | filled | Grayscale is currently applied, including during an opted-in grayscale focus session. |
 | **Half-shaded** | ◐ | half-filled | Temporary color: a **Color for 5 Minutes** peek or a focus break. Grayscale comes back on its own. |
 
 <p align="center"><img src="img/menu-bar-icons.png" width="510" alt="Icon states. Dot: empty circle for color (off), filled circle for grayscale (on), half-filled circle for temporary color. Wildcat mode: outlined, filled, and half-filled wildcat heads for the same states."></p>
@@ -79,9 +79,11 @@ During a focus round, a countdown (for example **● 18:30**) sits next to the i
 
 Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus sessions for you:
 
-1. **Focus (25 min, grayscale).** The screen goes quiet so you can get into the work.
-2. **Break (5 min, color).** Color comes back on its own. Check messages, stretch, look at something colorful.
-3. **Repeat** for the number of sessions in your round (4 by default). After the last one, your display goes back to how it was.
+1. **Focus (25 min).** The timer starts while your display stays as it is.
+2. **Break (5 min).** Take a break when the timer switches phases.
+3. **Repeat** for the number of sessions in your round (4 by default).
+
+**Use grayscale during focus** in **Settings → Focus** is off by default, including after an upgrade. Enable it for your next round to activate E-Ink Mode during focus and show color on breaks. Afterwards, the display returns to how it was. Turning E-Ink Mode off or changing the grayscale appearance setting keeps the timer running and releases automatic display switching for the rest of that round.
 
 <p align="center">
   <img src="img/menu-focus.png" width="375" alt="Menu while focusing: Focus 1 of 4 · 18:30 left, Stop Focus Session">
@@ -90,11 +92,11 @@ Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus 
 
 - **Always know where you are.** The menu bar shows a live countdown beside the icon (● 18:30 while focusing, ◐ 4:30 on a break), and the menu says *Focus 1 of 4 · 18:30 left* or *Break · 4:30 left, then focus 3 of 4*.
 - **Gentle cues.** A soft sound and a short note under the icon mark each switch between focus and break. You can turn both off.
-- **Everything stays within reach.** Your other options still work mid-focus: **Color for 5 Minutes** gives you a quick color peek, and the focus timer keeps running while you look. Schedule, Customize Appearance, and Settings are all still in the menu.
+- **Everything stays within reach.** Your other options still work mid-focus: **Color for 5 Minutes** gives you a quick color peek when E-Ink Mode is on and grayscale is enabled, and the focus timer keeps running while you look. Schedule, Customize Appearance, and Settings are all still in the menu.
 
   <img src="img/menu-focus-color.png" width="380" alt="Menu mid-focus with a color peek: Focus 1 of 4 · 18:29 left, Resume grayscale · 4:32 remaining">
 - **Flexible.** **Skip Break** starts the next session right away. **Stop Focus Session** ends the round, and minutes you already focused still count.
-- **Pause and resume.** **Pause Focus Round** freezes the current focus or break phase and its countdown; **Resume Focus Round** continues the same phase and round. Focus stays grayscale and breaks stay in color while paused. Paused time earns no minutes or completed sessions. Stopping while paused credits only active focus minutes already spent. A temporary color peek can expire while the round is paused; its expiry returns grayscale without restarting the focus timer. The schedule waits until the round ends, even while paused. Quitting restores the display and ends the round; after a crash, **Continue Session** restores the display state while keeping a paused round paused.
+- **Pause and resume.** **Pause Focus Round** freezes the current focus or break phase and its countdown; **Resume Focus Round** continues the same phase and round. Pause leaves the display as it is; opted-in grayscale focus and color breaks keep their current appearance. Paused time earns no minutes or completed sessions. Stopping while paused credits only active focus minutes already spent. A temporary color peek can expire while the round is paused; its expiry returns grayscale without restarting the focus timer. The schedule waits until the round ends, even while paused. Quitting restores the display and ends the round; after a crash, **Continue Session** restores the display state while keeping a paused round paused.
 - **Sleep and restart.** The timer uses elapsed time, so sleeping through a phase can still count it as completed. When your Mac wakes, the round catches up. If the app restarts, the round continues. The schedule waits until the round is over.
 
 ### Your daily tracker
@@ -112,7 +114,7 @@ Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus 
 
 ### Make it yours
 
-Choose lengths and goals in **Settings → Focus**: focus 5–90 minutes, breaks 1–30 minutes, 1–12 sessions per round, and a daily goal of 1–24 sessions (default 4). Changes apply to your next round; a round in progress keeps its timing.
+Choose lengths and goals in **Settings → Focus**: focus 5–90 minutes, breaks 1–30 minutes, 1–12 sessions per round, and a daily goal of 1–24 sessions (default 4), and optional grayscale focus (default off). Changes apply to your next round; a round in progress keeps its timing.
 
 <p align="center"><img src="img/settings-focus.png" width="516" alt="Focus settings: focus length, break length, sessions per round, daily goal, sound and menu bar countdown toggles"></p>
 
@@ -210,7 +212,7 @@ E-Ink Mode has no accounts, analytics, or tracking. Update checks contact GitHub
 
 ## Known limitations
 
-- **Beta signing:** beta.3 remains ad hoc signed and unnotarized. Browser downloads may require **Open Anyway**; the installer preserves quarantine. Developer ID signing and notarization are deferred.
+- **Beta signing:** beta.4 remains ad hoc signed and unnotarized. Browser downloads may require **Open Anyway**; the installer preserves quarantine. Developer ID signing and notarization are deferred.
 - **Warm colors:** use Night Shift or f.lux. E-Ink Mode leaves warmth to them.
 - **Notifications:** E-Ink Mode doesn't change Focus or Do Not Disturb, because macOS gives apps no reliable way to restore them.
 - **Brightness** works only on displays that let macOS control it.
@@ -246,6 +248,7 @@ eink grayscale            # end temporary color now
 eink focus [sessions]     # start a round; eink focus pause | resume | stop | skip
 eink stats                # today's progress, streak, and totals
 eink set focus-minutes|break-minutes|focus-sessions|daily-goal N
+eink set focus-grayscale on|off
 eink set grayscale|dock|motion|transparency on|off
 eink set brightness 5..100|unchanged
 eink set schedule evening|on|off

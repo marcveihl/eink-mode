@@ -54,7 +54,7 @@ struct OnboardingView: View {
                 Text("Look for ○ at the top-right of your screen, in the menu bar. It fills in (●) while your screen is grayscale. Click it for the menu.")
                 Toggle("Click the icon to switch on and off instead (right-click for the menu)", isOn: $model.clickToFlip)
                 if let shortcutSymbol { Text("Or press \(shortcutSymbol) from any app.").foregroundStyle(.secondary) }
-                Text("Studying? Choose Start Focus in the menu: grayscale focus sessions with color breaks in between.")
+                Text("Studying? Choose Start Focus in the menu for focus sessions with timed breaks. You can opt into grayscale in Settings → Focus.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             HStack {

@@ -13,7 +13,7 @@ final class FocusTests: XCTestCase {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         system = FakeSystem(); system.values["grayscale"] = .flag(false)
         controller = Controller(store: Store(directory: directory), adapter: system, calendar: calendar)
-        var config = Configuration(); config.hideDock = true
+        var config = Configuration(); config.hideDock = true; config.focus.grayscale = true
         try! controller.update(config, now: start)
     }
     override func tearDown() { try? FileManager.default.removeItem(at: directory) }
@@ -73,11 +73,21 @@ final class FocusTests: XCTestCase {
         let today = try controller.focusStats(now: at(13)).today
         XCTAssertEqual(today.completed, 0); XCTAssertEqual(today.stopped, 1); XCTAssertEqual(today.focusMinutes, 12)
     }
-    func testTurningOffDuringFocusEndsTheRound() throws {
-        try controller.startFocus(now: start)
+    func testTurningOffDuringFocusKeepsTheRoundAndRelinquishesDisplayControl() throws {
+        try controller.startFocus(sessions: 2, now: start)
         try controller.setMode(false, now: at(10))
+        XCTAssertFalse(try controller.status().active)
+        XCTAssertTrue(try controller.status().focusing)
+        XCTAssertEqual(try controller.status().state.focus?.phaseEnds, at(25))
+        XCTAssertEqual(try controller.focusStats(now: at(10)).today.stopped, 0)
+        try controller.setMode(true, now: at(12)) // the user's manual mode is now independent
+        try controller.tick(now: at(25))
+        XCTAssertEqual(try controller.status().state.focus?.phase, .rest)
+        XCTAssertTrue(gray, "automatic breaks no longer override the manual display choice")
+        try controller.tick(now: at(55))
         XCTAssertNil(try controller.status().state.focus)
-        XCTAssertEqual(try controller.focusStats(now: at(10)).today.stopped, 1)
+        XCTAssertTrue(try controller.status().active, "the round no longer owns the manually enabled mode")
+        XCTAssertEqual(try controller.focusStats(now: at(55)).today.completed, 2)
     }
     func testSkipBreakStartsNextSessionNow() throws {
         try controller.startFocus(sessions: 3, now: start)
@@ -215,12 +225,13 @@ final class FocusTests: XCTestCase {
         try Data("corrupt".utf8).write(to: directory.appendingPathComponent("config.json"))
         try controller.setMode(false, now: at(100))
         XCTAssertEqual(system.values, original)
-        XCTAssertNil(try Store(directory: directory).read("state.json", default: RuntimeState()).focus)
+        XCTAssertNotNil(try Store(directory: directory).read("state.json", default: RuntimeState()).focus?.pausedAt)
     }
     func testLegacyPersistedRoundDecodesWithoutPauseFields() throws {
         let old = #"{"phase":"focus","round":1,"rounds":4,"phaseStarted":0,"phaseEnds":1500,"focusSeconds":1500,"breakSeconds":300,"ownsMode":true}"#
         let focus = try JSONDecoder().decode(FocusSession.self, from: Data(old.utf8))
         XCTAssertNil(focus.pausedAt)
+        XCTAssertTrue(focus.controlsGrayscale)
         XCTAssertEqual(focus.remaining(now: Date(timeIntervalSinceReferenceDate: 0)), 1500)
     }
     func testPauseBreakKeepsColorAndScheduleDefersUntilStop() throws {
@@ -261,6 +272,117 @@ final class FocusTests: XCTestCase {
         let config = try JSONDecoder().decode(Configuration.self, from: Data(old.utf8))
         XCTAssertEqual(config.focus, FocusSettings())
         XCTAssertEqual(config.brightness, 0.35)
+    }
+
+    func testNewAndLegacyPreferencesDefaultToTimerOnly() throws {
+        XCTAssertFalse(FocusSettings().grayscale)
+        let old = #"{"focusMinutes":25,"breakMinutes":5,"sessions":4,"dailyGoal":4}"#
+        XCTAssertFalse(try JSONDecoder().decode(FocusSettings.self, from: Data(old.utf8)).grayscale)
+        var settings = FocusSettings(); settings.grayscale = true
+        XCTAssertEqual(try JSONDecoder().decode(FocusSettings.self, from: JSONEncoder().encode(settings)), settings)
+    }
+
+    func testTimerOnlyRoundLeavesEveryDisplaySettingAloneAndCatchesUpAfterRestart() throws {
+        try controller.update(Configuration(), now: start)
+        system.values.removeValue(forKey: "grayscale") // a timer does not require native grayscale support
+        let original = system.values
+        try controller.startFocus(sessions: 2, now: start)
+        XCTAssertTrue(try controller.status().focusing)
+        XCTAssertFalse(try controller.status().active)
+        XCTAssertEqual(system.values, original)
+        let restarted = Controller(store: Store(directory: directory), adapter: system, calendar: calendar)
+        try restarted.tick(now: at(25))
+        XCTAssertEqual(try restarted.status().state.focus?.phase, .rest)
+        try restarted.skipBreak(now: at(27))
+        XCTAssertEqual(try restarted.status().state.focus?.phaseEnds, at(52))
+        try restarted.tick(now: at(60))
+        XCTAssertNil(try restarted.status().state.focus)
+        XCTAssertEqual(system.values, original)
+        XCTAssertEqual(system.writes, 0, "a timer-only round must not write display settings")
+        let stats = try restarted.focusStats(now: at(60))
+        XCTAssertEqual(stats.today.completed, 2)
+        XCTAssertEqual(stats.today.focusMinutes, 50)
+        XCTAssertEqual(stats.today.rounds, 1)
+    }
+
+    func testTimerOnlyRoundDoesNotReapplyAnActiveDisplayProfile() throws {
+        try controller.edit(now: start) { $0.focus.grayscale = false }
+        try controller.setMode(true, now: start)
+        let writes = system.writes
+        try controller.startFocus(sessions: 2, now: start)
+        try controller.pauseFocus(now: at(5))
+        try controller.resumeFocus(now: at(6))
+        try controller.tick(now: at(26))
+        try controller.skipBreak(now: at(27))
+        try controller.tick(now: at(52))
+        XCTAssertNil(try controller.status().state.focus)
+        XCTAssertEqual(system.writes, writes, "timer actions must not rewrite an active display profile")
+    }
+
+    func testTimerOnlyRoundKeepsExistingModeAndColorPeekAcrossBreaks() throws {
+        try controller.edit(now: start) { $0.focus.grayscale = false }
+        try controller.setMode(true, now: start)
+        try controller.startTemporaryColor(for: 40 * 60, now: start)
+        let original = system.values
+        try controller.startFocus(sessions: 2, now: start)
+        XCTAssertEqual(system.values, original)
+        try controller.tick(now: at(25))
+        XCTAssertEqual(try controller.status().temporaryColorRemaining(now: at(25)), 15 * 60)
+        try controller.endTemporaryColor(now: at(26))
+        XCTAssertTrue(gray, "timer-only breaks leave the existing grayscale profile alone")
+        try controller.startTemporaryColor(now: at(27))
+        XCTAssertFalse(gray, "timer-only breaks still allow the normal color peek")
+        try controller.stopFocus(now: at(28))
+        XCTAssertFalse(gray, "stopping a timer leaves the manual color peek alone")
+        XCTAssertTrue(try controller.status().active)
+    }
+
+    func testManualGrayscaleSettingsWinWithoutChangingFocusDeadline() throws {
+        try controller.startFocus(sessions: 2, now: start)
+        try controller.edit(now: at(10)) { $0.grayscale = false }
+        XCTAssertFalse(gray)
+        XCTAssertEqual(try controller.status().state.focus?.phaseEnds, at(25))
+        try controller.tick(now: at(30))
+        XCTAssertFalse(gray, "next focus phase honors the manual grayscale choice")
+        XCTAssertEqual(try controller.status().state.focus?.round, 2)
+        XCTAssertEqual(try controller.focusStats(now: at(30)).today.stopped, 0)
+    }
+
+    func testToggleOffDuringPausedFocusSurvivesRestartAndFinishesNormally() throws {
+        try controller.startFocus(sessions: 1, now: start)
+        try controller.pauseFocus(now: at(10))
+        try controller.toggle(now: at(11))
+        let restarted = Controller(store: Store(directory: directory), adapter: system, calendar: calendar)
+        try restarted.tick(now: at(100))
+        XCTAssertEqual(try XCTUnwrap(restarted.status().state.focus).remaining(now: at(100)), 15 * 60)
+        try restarted.resumeFocus(now: at(100))
+        try restarted.tick(now: at(115))
+        XCTAssertNil(try restarted.status().state.focus)
+        XCTAssertFalse(try restarted.status().active)
+        XCTAssertEqual(try restarted.focusStats(now: at(115)).today.completed, 1)
+    }
+
+    func testFocusDisplayPreferenceAppliesToNextRound() throws {
+        try controller.edit(now: start) { $0.focus.grayscale = false }
+        try controller.startFocus(sessions: 1, now: start)
+        try controller.edit(now: at(5)) { $0.focus.grayscale = true }
+        XCTAssertFalse(try controller.status().active)
+        XCTAssertFalse(try XCTUnwrap(controller.status().state.focus).controlsGrayscale)
+        try controller.tick(now: at(25))
+        try controller.startFocus(sessions: 1, now: at(26))
+        XCTAssertTrue(gray)
+        XCTAssertTrue(try XCTUnwrap(controller.status().state.focus).controlsGrayscale)
+    }
+
+    func testQuitEndsTimerOnlyRoundAndCreditsActiveMinutes() throws {
+        try controller.edit(now: start) { $0.focus.grayscale = false }
+        let original = system.values
+        try controller.startFocus(now: start)
+        try controller.shutdown(resumeScheduleOnLaunch: false, now: at(12))
+        XCTAssertNil(try controller.status().state.focus)
+        XCTAssertEqual(system.values, original)
+        XCTAssertEqual(try controller.focusStats(now: at(12)).today.focusMinutes, 12)
+        XCTAssertEqual(try controller.focusStats(now: at(12)).today.stopped, 1)
     }
 }
 

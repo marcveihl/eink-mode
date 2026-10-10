@@ -11,7 +11,7 @@ E-Ink Mode
   eink on | off | toggle | status | resume | tick | version
   eink color [minutes]                show color temporarily (default 5), then return to grayscale
   eink grayscale                      end temporary color now
-  eink focus [sessions]               start a Pomodoro round: grayscale focus, color breaks
+  eink focus [sessions]               start a Pomodoro round (optional grayscale in settings)
   eink focus pause | resume | stop | skip
   eink stats                          today's focus progress, streak, and totals
   eink config                         show configuration
@@ -22,6 +22,7 @@ E-Ink Mode
   eink set schedule-on|schedule-off HH:MM
   eink set schedule evening           use the Evening preset (21:00–07:00) and turn it on
   eink set focus-minutes|break-minutes|focus-sessions|daily-goal N
+  eink set focus-grayscale on|off      use grayscale for future focus rounds (default off)
 
 Schedule runs while the menu bar app is open (enable Launch at login for daily use).
 EINK_HOME selects an isolated config/state directory; EINK_SIMULATED=1 enables safe simulation.
@@ -76,6 +77,7 @@ do {
         try controller.edit { config in
         switch args[1] {
         case "grayscale": config.grayscale = try boolean(args[2])
+        case "focus-grayscale": config.focus.grayscale = try boolean(args[2])
         case "brightness":
             if args[2] == "unchanged" { config.brightness = nil }
             else if let number = Double(args[2]) { config.brightness = number / 100 }

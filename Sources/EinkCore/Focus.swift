@@ -1,7 +1,8 @@
 import Foundation
 
-/// Pomodoro preferences: focus in grayscale, take a color break, repeat.
+/// Pomodoro preferences, with optional grayscale focus and color breaks.
 public struct FocusSettings: Codable, Equatable {
+    public var grayscale = false
     public var focusMinutes = 25
     public var breakMinutes = 5
     /// Focus sessions per round ("x number of sessions").
@@ -12,6 +13,7 @@ public struct FocusSettings: Codable, Equatable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let d = FocusSettings()
+        grayscale = try c.decodeIfPresent(Bool.self, forKey: .grayscale) ?? d.grayscale
         focusMinutes = try c.decodeIfPresent(Int.self, forKey: .focusMinutes) ?? d.focusMinutes
         breakMinutes = try c.decodeIfPresent(Int.self, forKey: .breakMinutes) ?? d.breakMinutes
         sessions = try c.decodeIfPresent(Int.self, forKey: .sessions) ?? d.sessions
@@ -43,6 +45,10 @@ public struct FocusSession: Codable, Equatable {
     public var breakSeconds: TimeInterval
     /// E-Ink Mode was off when the round started, so finishing or stopping turns it off again.
     public var ownsMode: Bool
+    /// Captured at start. A manual display change releases the round's grayscale control.
+    /// Nil preserves grayscale behavior for rounds saved by older versions.
+    public var usesGrayscale: Bool?
+    public var controlsGrayscale: Bool { usesGrayscale ?? true }
     public func remaining(now: Date) -> TimeInterval { max(0, phaseEnds.timeIntervalSince(pausedAt ?? now)) }
 }
 
