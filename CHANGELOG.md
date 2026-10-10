@@ -7,6 +7,7 @@
 - Timer-only rounds retain pause/resume, break skipping, restart recovery, completion history, and countdowns. The menu bar icon follows the actual grayscale state.
 - CLI: `eink set focus-grayscale on|off` configures future rounds.
 - **Compact General settings:** group everyday preferences, keep the hold-color shortcut beside its toggle, and tuck longer explanations into tooltips and expandable tips. The window stays within the screen height and scrolls when more space is needed.
+- Verified with 97 Swift tests, CLI integration, release guard checks, and isolated installation of the universal release archive.
 
 ## 0.10.0-beta.3 (Focus controls and held color)
 

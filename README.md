@@ -6,9 +6,11 @@
 
 For macOS 13 Ventura or newer (Apple silicon and Intel) or Windows 10/11 x64 · **Beta**
 
-**New: Windows beta, 2026-09-24** — see [Windows (beta)](#windows-beta) below.
+**Latest Mac release: [0.10.0-beta.4](https://github.com/marcveihl/eink-mode/releases/tag/v0.10.0-beta.4)** — focus without grayscale, independent Pomodoro timers, and compact General settings.
 
-[Download](https://github.com/marcveihl/eink-mode/releases/latest) · [User guide](docs/USER-GUIDE.md) · [Changelog](CHANGELOG.md) · [Roadmap](docs/ROADMAP.md)
+**Windows beta:** see [Windows (beta)](#windows-beta) below for its separate release and installer.
+
+[Download for Mac](https://github.com/marcveihl/eink-mode/releases/download/v0.10.0-beta.4/E-Ink-Mode-0.10.0-beta.4.zip) · [Release notes](https://github.com/marcveihl/eink-mode/releases/tag/v0.10.0-beta.4) · [User guide](docs/USER-GUIDE.md) · [Changelog](CHANGELOG.md) · [Roadmap](docs/ROADMAP.md)
 
 <p align="center"><img src="docs/img/menu-on.png" width="375" alt="E-Ink Mode menu with mode toggle, temporary color, focus sessions, keep display awake, and schedule"></p>
 
@@ -26,22 +28,22 @@ Need to check a photo, a chart, or a color-coded calendar? **Color for 5 Minutes
 
 ### Focus sessions for studying
 
-**Start Focus** runs a round of Pomodoro-style sessions: 25 minutes of focus, then a 5-minute break, four times over. By default, the timers leave your display alone. Enable **Settings → Focus → Use grayscale during focus** for automatic grayscale focus and color breaks. A soft sound marks each phase change, and a countdown sits next to the menu bar icon. You can pause and resume, skip a break, or stop early (minutes you already focused still count). Changing grayscale or turning E-Ink Mode off keeps the timer running and releases automatic display switching for that round.
+**Start Focus** runs a Pomodoro-style round: four 25-minute focus sessions separated by 5-minute breaks. By default, the timers leave your display alone. Enable **Settings → Focus → Use grayscale during focus** for automatic grayscale focus and color breaks. A soft sound marks each phase change, and a countdown sits next to the menu bar icon. You can pause and resume, skip a break, or stop early (minutes you already focused still count). Changing grayscale or turning E-Ink Mode off keeps the timer running and releases automatic display switching for that round.
 
 <p align="center">
-  <img src="docs/img/menu-focus.png" width="330" alt="Menu while focusing: Focus 1 of 4 · 18:30 left, Color for 5 Minutes, Stop Focus Session">
-  <img src="docs/img/menu-break.png" width="330" alt="Menu on a break: Break · 4:30 left, then focus 3 of 4, Skip Break, Stop Focus Session">
+  <img src="docs/img/menu-focus-timer.png" width="330" alt="Timer-only focus with E-Ink Mode off: Focus 1 of 4 · 18:30 left, Pause Focus Round, Stop Focus Session">
+  <img src="docs/img/menu-break.png" width="330" alt="Break with optional grayscale enabled: 4:30 left, then focus 3 of 4, Skip Break, Stop Focus Session">
 </p>
 
 ### A daily tracker that keeps you going
 
 **Focus Stats** shows today's completed timer sessions against a daily goal (4 by default, and you can change it). It also shows your current and best streak, this week, retained totals, and your best day, with a 7-day chart and a short nudge suited to the moment, like *One more session to reach today's goal*. Up to 800 recorded days stay on your Mac. Each day's goal is preserved, so changing today's target doesn't rewrite past achievements. Older records with unknown goals are excluded from historical goal counts. These statistics describe timer activity, not measured attention.
 
-<p align="center"><img src="docs/img/focus-stats.png" width="480" alt="Focus Stats: today 3 of 4 sessions, 7-day streak, week and all-time totals, best day, and a 7-day bar chart with the daily goal as a dashed line"></p>
+<p align="center"><img src="docs/img/focus-stats.png" width="480" alt="Focus Stats: today 3 of 4 sessions, 7-day streak, week and retained totals, best day, and a 7-day bar chart with saved daily goals as diamond markers"></p>
 
 ### An icon you can read at a glance
 
-The menu bar icon is **unshaded** while your screen is in color, **shaded** while it's grayscale, and **half-shaded** during temporary color (a color peek or a focus break). **Wildcat mode** swaps the dot for a wildcat head that follows the same rule. Go 'Cats!
+The menu bar icon is **unshaded** while your screen is in color, **shaded** while it's grayscale, and **half-shaded** during temporary color (a color peek or a break in a grayscale focus round). **Wildcat mode** swaps the dot for a wildcat head that follows the same rule. Go 'Cats!
 
 <p align="center"><img src="docs/img/menu-bar-icons.png" width="510" alt="Dot and Wildcat mode icons: unshaded for color (off), shaded for grayscale (on), half-shaded for temporary color"></p>
 
@@ -50,17 +52,18 @@ The menu bar icon is **unshaded** while your screen is in color, **shaded** whil
 - **Keep Display Awake:** a switch in the menu that stops the display sleeping and the screen saver starting while you read. It lasts until you switch it off, and quitting always releases it.
 - **Evening schedule:** turn on at 9 PM and off at 7 AM (or your own times). The menu tells you what's next, such as *Turns on tonight at 9:00 PM*, and switching by hand always wins.
 - **Your display always comes back:** your original settings are saved before anything changes. Quitting, logging out, updating, and even a crash all lead back to exactly how your Mac looked before.
-- **Updates built in:** the app checks for new versions and installs them in place.
+- **Compact General settings:** grouped controls and expandable tips keep the window shorter; extra details scroll within the pane.
+- **Update checks built in:** the app checks for new versions. Install this unsigned beta using the download or Terminal installer; in-app installation requires a signed release with a configured publisher identity.
 
 See the [user guide](docs/USER-GUIDE.md) for every control, setting, and guarantee in detail.
 
 ## Install
 
-Download the ZIP from the [latest release](https://github.com/marcveihl/eink-mode/releases/latest), unzip it, and move **E-Ink Mode.app** to **Applications**.
+Download [E-Ink-Mode-0.10.0-beta.4.zip](https://github.com/marcveihl/eink-mode/releases/download/v0.10.0-beta.4/E-Ink-Mode-0.10.0-beta.4.zip), unzip it, and move **E-Ink Mode.app** to **Applications**. The ZIP supports both Apple silicon and Intel Macs. Its [SHA-256 checksum](https://github.com/marcveihl/eink-mode/releases/download/v0.10.0-beta.4/E-Ink-Mode-0.10.0-beta.4.zip.sha256) is available alongside the download.
 
 Beta.4 is not Developer ID signed or notarized. If macOS blocks a browser download, attempt to open the app, then use **System Settings → Privacy & Security → Open Anyway**. Signing is deferred until a later release.
 
-Prefer Terminal? Review the [installer](scripts/install.sh), then run:
+Prefer Terminal? Review the [published installer](https://github.com/marcveihl/eink-mode/releases/download/v0.10.0-beta.4/install.sh), then run:
 
 ```sh
 curl -fsSL https://github.com/marcveihl/eink-mode/releases/latest/download/install.sh | bash
@@ -72,7 +75,8 @@ This beta's installer verifies the exact archive checksum and signature integrit
 
 Click the **○** in the menu bar (it becomes **●** while your screen is grayscale) to turn the mode on, start a focus session, or change settings.
 
-- Enable **Click the icon to switch** for one-click toggling. Right-click, Control-click, or hold to open the menu.
+- Enable **Settings → General → Behavior → Click icon to toggle E-Ink Mode** for one-click toggling. Right-click, Control-click, or hold for about a second to open the menu.
+- Keep **Appearance → Grayscale** on for normal grayscale switching. **Focus → Use grayscale during focus** is a separate setting and defaults off.
 - Choose **Color for 5 Minutes** when you need color; **Resume grayscale** ends it early.
 - Enable **Open at login** if you want the schedule to run each day.
 - Choose **Quit and Restore Display** before uninstalling.

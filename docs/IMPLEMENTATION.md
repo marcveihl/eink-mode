@@ -1,6 +1,6 @@
 # E-Ink Mode implementation scope
 
-Approved working scope: macOS MVP plus inline settings, independent grayscale, and nightly scheduling. Preserve prototype0. Windows, custom rendering/palettes/dithering, IDE themes, and app blocking are deferred. Warmth remains owned by f.lux. Notification suppression is unavailable unless prior state can be reliably captured and restored.
+Current Mac release: **0.10.0-beta.4**, with window-based settings, independent grayscale, nightly scheduling, focus rounds, and local stats. Windows has a separate earlier-stage beta; see [its implementation](../windows/README.md). Preserve prototype0. Custom rendering/palettes/dithering, IDE themes, and app blocking remain deferred. Warmth remains owned by f.lux. Notification suppression is unavailable unless prior state can be reliably captured and restored.
 
 Deliver menu bar settings, primary toggle, Command-Shift-E, grayscale, optional brightness, Dock autohide, reduced motion/transparency where supported, login startup, persisted configuration, crash recovery and CLI parity. Schedule defaults to disabled, 21:00–07:00 daily local time, catches up on wake/start, and respects manual mode overrides until the next boundary. Launch alone never activates an unscheduled profile.
 
@@ -11,3 +11,11 @@ New app and CLI share a Swift core and atomic JSON state. Read legacy config as 
 Beta 0.9 (see CHANGELOG): defaults are grayscale-only; brightness and Dock are opt-in via first-run setup. Temporary color is runtime state (`colorUntil`) that never edits the saved profile. Status menu follows the agreed hierarchy; settings moved to a window. App exceptions and a free-form shortcut recorder are deferred until beta feedback.
 
 Beta 0.10.0-beta.3: **Keep Display Awake** is a menu-bar-app power assertion (`kIOPMAssertPreventUserIdleDisplaySleep`, `Sources/EinkMac/DisplayAwake.swift`), not a captured system setting, so it never enters the restoration journal — macOS releases it when the process ends. The choice is remembered in `UserDefaults` (`keepAwake`) and re-held at launch. The CLI has no equivalent: a short-lived command cannot hold an assertion.
+
+Focus rounds support persisted pause/resume and held-color shortcuts (including Fn/Globe). History retains up to 800 recorded days, saves daily goals, excludes unknown legacy goals from historical attainment, and labels totals as retained timer activity. Unpaused rounds still catch up across sleep; automatic sleep/lock pausing is deferred.
+
+Beta 0.10.0-beta.4: **Use grayscale during focus** defaults off, including when older preferences lack the field. Timer-only rounds never acquire a display session and retain pause/resume, break skipping, recovery, and history. A round captures its grayscale choice at start; legacy persisted rounds without that choice preserve their prior grayscale behavior. Turning the mode off or editing Appearance grayscale leaves the timer running and releases automatic display control for the rest of the round. Explicit stop and app shutdown end the round. Scheduling waits until the round ends, including timer-only rounds.
+
+General settings groups behavior, keyboard shortcuts, and updates/help. Tooltips and collapsed tips reduce the initial height, and a screen-aware height limit allows longer content to scroll. Normal Appearance grayscale remains independent of the focus preference.
+
+Distribution guards verify the expected Developer ID publisher and macOS acceptance for signed installs and updates. Beta.4 uses the explicit unsigned-beta exception: an ad hoc signed universal archive, exact checksum/version pinning in the generated installer, and preserved quarantine. In-app installation remains unavailable until a publisher identity is configured. See [releasing](RELEASING.md) and [QA](QA.md).

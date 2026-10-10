@@ -1,6 +1,6 @@
 # User guide
 
-Detailed setup and controls for E-Ink Mode. For a quick overview, see the [README](../README.md).
+Detailed setup and controls for [E-Ink Mode 0.10.0-beta.4](https://github.com/marcveihl/eink-mode/releases/tag/v0.10.0-beta.4). For a quick overview, see the [README](../README.md).
 
 ## Install
 
@@ -15,7 +15,7 @@ The script downloads the latest version, checks it, quits any older copy (restor
 <details>
 <summary><b>Prefer to download the zip yourself?</b></summary>
 
-1. Download `E-Ink-Mode-<version>.zip` from the [latest release](https://github.com/marcveihl/eink-mode/releases) and double-click it to unzip.
+1. Download [E-Ink-Mode-0.10.0-beta.4.zip](https://github.com/marcveihl/eink-mode/releases/download/v0.10.0-beta.4/E-Ink-Mode-0.10.0-beta.4.zip) and double-click it to unzip.
 2. Drag **E-Ink Mode** into your **Applications** folder.
 3. Double-click it. Beta.4 is not Developer ID signed or notarized. If macOS blocks it, use **System Settings → Privacy & Security → Open Anyway** after attempting to open it.
 
@@ -49,7 +49,7 @@ Click the E-Ink Mode icon (**○** or **●**) in the menu bar. The mode and the
 | **Turn On / Turn Off** | The main switch. **⌘⇧E** does the same from any app. |
 | **Color for 5 Minutes** | Brings color back briefly, then returns to grayscale by itself. |
 | **Hold to show color** | An optional shortcut (default **⌃⌥⌘C**) shows color only while you hold the keys. You can also choose **Fn / 🌐 Globe** alone in **Settings → General**. Release to return to the current focus, timed-peek, or schedule state. |
-| **Start Focus · 4 × 25 min** | Starts a round of focus sessions with color breaks ([below](#focus-sessions-and-daily-stats)). |
+| **Start Focus · 4 × 25 min** | Starts a round of focus and break timers; grayscale is optional ([below](#focus-sessions-and-daily-stats)). |
 | **Focus Stats…** | Your daily tracker. The line below it shows today's count and your streak. |
 | **Keep Display Awake** | Stops the display sleeping while it's checked ([below](#keep-display-awake)). |
 | **Schedule · …** | What the schedule will do next, such as *Until 7:00 AM* or *Turns on tonight at 9:00 PM*. |
@@ -65,15 +65,15 @@ The icon's shading tells you what your screen is doing. The same rule applies to
 
 | Icon | Dot | Wildcat | Your screen |
 |---|---|---|---|
-| **Unshaded** | ○ | outlined | In color. E-Ink Mode is off. |
+| **Unshaded** | ○ | outlined | In color, including timer-only focus with E-Ink Mode off or a profile with grayscale disabled. |
 | **Shaded** | ● | filled | Grayscale is currently applied, including during an opted-in grayscale focus session. |
-| **Half-shaded** | ◐ | half-filled | Temporary color: a **Color for 5 Minutes** peek or a focus break. Grayscale comes back on its own. |
+| **Half-shaded** | ◐ | half-filled | Temporary color: a color peek or a break in an opted-in grayscale round. Grayscale comes back on its own. |
 
 <p align="center"><img src="img/menu-bar-icons.png" width="510" alt="Icon states. Dot: empty circle for color (off), filled circle for grayscale (on), half-filled circle for temporary color. Wildcat mode: outlined, filled, and half-filled wildcat heads for the same states."></p>
 
 During a focus round, a countdown (for example **● 18:30**) sits next to the icon; you can hide it in **Settings → Focus**. When something needs your attention, a **warning icon** replaces the dot or wildcat until you deal with it.
 
-**Prefer one click?** Turn on *Click the icon to switch* (in the welcome guide or **Settings → General**). A click then toggles E-Ink Mode — take as long over it as you like, since the menu only opens if you hold the icon for about a second. **Right-click** and **Control-click** open the menu straight away. A reminder appears at the bottom of the menu.
+**Prefer one click?** Enable **Settings → General → Behavior → Click icon to toggle E-Ink Mode** (also offered in the welcome guide). A short click toggles E-Ink Mode; holding the icon for about a second opens the menu. **Right-click** and **Control-click** open the menu straight away. A reminder appears at the bottom of the menu.
 
 ## Focus sessions and daily stats
 
@@ -85,12 +85,16 @@ Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus 
 
 **Use grayscale during focus** in **Settings → Focus** is off by default, including after an upgrade. Enable it for your next round to activate E-Ink Mode during focus and show color on breaks. Afterwards, the display returns to how it was. Turning E-Ink Mode off or changing the grayscale appearance setting keeps the timer running and releases automatic display switching for the rest of that round.
 
+<p align="center"><img src="img/menu-focus-timer.png" width="375" alt="Timer-only focus with E-Ink Mode off: live countdown, Pause Focus Round, and Stop Focus Session"></p>
+
+With optional grayscale enabled, the focus and break menus look like this:
+
 <p align="center">
   <img src="img/menu-focus.png" width="375" alt="Menu while focusing: Focus 1 of 4 · 18:30 left, Stop Focus Session">
   <img src="img/menu-break.png" width="375" alt="Menu on a break: Break · 4:30 left, then focus 3 of 4, Skip Break, Stop Focus Session">
 </p>
 
-- **Always know where you are.** The menu bar shows a live countdown beside the icon (● 18:30 while focusing, ◐ 4:30 on a break), and the menu says *Focus 1 of 4 · 18:30 left* or *Break · 4:30 left, then focus 3 of 4*.
+- **Always know where you are.** The menu bar shows a live countdown beside the icon (for example ○ 18:30 for timer-only focus with the display in color), and the menu says *Focus 1 of 4 · 18:30 left* or *Break · 4:30 left, then focus 3 of 4*. Grayscale rounds use ● while focusing and ◐ during color breaks.
 - **Gentle cues.** A soft sound and a short note under the icon mark each switch between focus and break. You can turn both off.
 - **Everything stays within reach.** Your other options still work mid-focus: **Color for 5 Minutes** gives you a quick color peek when E-Ink Mode is on and grayscale is enabled, and the focus timer keeps running while you look. Schedule, Customize Appearance, and Settings are all still in the menu.
 
@@ -114,9 +118,9 @@ Built for studying. Choose **Start Focus** and E-Ink Mode runs a round of focus 
 
 ### Make it yours
 
-Choose lengths and goals in **Settings → Focus**: focus 5–90 minutes, breaks 1–30 minutes, 1–12 sessions per round, and a daily goal of 1–24 sessions (default 4), and optional grayscale focus (default off). Changes apply to your next round; a round in progress keeps its timing.
+Choose lengths and goals in **Settings → Focus**: focus 5–90 minutes, breaks 1–30 minutes, 1–12 sessions per round, a daily goal of 1–24 sessions (default 4), and optional grayscale focus (default off). Timing and grayscale choices apply to your next round; a round in progress keeps its timing. Daily-goal edits update today's progress immediately.
 
-<p align="center"><img src="img/settings-focus.png" width="516" alt="Focus settings: focus length, break length, sessions per round, daily goal, sound and menu bar countdown toggles"></p>
+<p align="center"><img src="img/settings-focus.png" width="516" alt="Focus settings: timing, sessions per round, optional grayscale off by default, daily goal, sound, and menu bar countdown"></p>
 
 Your focus history stays on your Mac (`focus-history.json`) and never leaves it.
 For new history, the app saves a goal with each recorded day. If a round is recorded after its start day, it uses the goal captured when that round began for that start day. A later day whose goal was never observed stays “unknown.” Existing history from older versions has no saved goals; upgrading keeps those goals unknown instead of assigning today's setting to the past.
@@ -131,7 +135,7 @@ When time is up, grayscale returns automatically, even if your Mac was asleep in
 
 ## Keep display awake
 
-Reading a long page without touching the keyboard? Choose **Keep Display Awake** in the menu. While it's checked, your display won't sleep and the screen saver won't start, whether or not E-Ink Mode itself is on. The same switch is in **Settings → General → Display sleep**.
+Reading a long page without touching the keyboard? Choose **Keep Display Awake** in the menu. While it's checked, your display won't sleep and the screen saver won't start, whether or not E-Ink Mode itself is on. The same switch is in **Settings → General → Behavior → Keep the display awake**.
 
 - **It lasts until you switch it off.** The menu keeps a checkmark beside it and says *Your display stays on until you switch this off.* Your choice is remembered the next time the app opens.
 - **Quitting always releases it.** macOS ties the hold to the running app, so quitting, logging out, or even a crash hands display sleep straight back to your energy settings — nothing to undo.
@@ -146,9 +150,9 @@ Let E-Ink Mode turn on in the evening and off in the morning. Pick **Schedule �
 - **You can always predict it.** The menu and settings say what happens next in plain words: *Turns on tonight at 9:00 PM*, *Until 7:00 AM*.
 - **Switching by hand always wins.** If you turn it off during the evening, the schedule leaves it off until its next change, and the menu says so: *Off by hand · resumes 7:00 AM*.
 
-  <img src="img/menu-off.png" width="382" alt="Menu showing Schedule · Off by hand · resumes 7:00 AM">
+  <img src="img/menu-off.png" width="382" alt="E-Ink Mode off before the evening period, with Schedule · Turns on tonight at 9:00 PM">
 - **It catches up** after your Mac wakes from sleep. After a restart or logout, it picks up the current period again when the app reopens.
-- The schedule runs while the app is open. Turn on **Open E-Ink Mode at login** so it works every day. With no schedule or session to resume, opening the app leaves the mode off.
+- The schedule runs while the app is open. Turn on **General → Behavior → Open at login** so it works every day. With no schedule or session to resume, opening the app leaves the mode off.
 
 ## Customize appearance
 
@@ -169,14 +173,14 @@ Everything beyond grayscale is optional and **off by default**. Changes apply im
 
 <p align="center"><img src="img/settings-general.png" width="516" alt="General settings: click behavior, wildcat mode, keep the display awake, keyboard shortcut, open at login, version and updates, help"></p>
 
-- **Menu bar icon:** choose whether a click opens the menu or switches the mode.
+- **Click icon to toggle E-Ink Mode:** choose whether a click opens the menu or switches the mode.
 - **Wildcat mode:** swaps the dot for a wildcat head. The shading is the same: outlined in color, filled in grayscale, half-filled during temporary color ([Reading the icon](#reading-the-icon)). The countdown still shows beside it during focus sessions. Go 'Cats!
 
   *The wildcat is original artwork in the spirit of the Northwestern Wildcats. It isn't the official Willie the Wildcat mascot.*
-- **Display sleep:** *Keep the display awake* is the same switch as **Keep Display Awake** in the menu ([above](#keep-display-awake)).
+- **Keep the display awake:** the same switch as **Keep Display Awake** in the menu ([above](#keep-display-awake)).
 - **Keyboard shortcut:** ⌘⇧E by default. Choose ⌃⌥⌘E, ⌃⌥E, ⌃⌥⌘G, or none. If another app already uses the shortcut, the app says so right there, so you can pick a different one.
-- **Open E-Ink Mode at login:** needed for schedules. macOS may ask you to approve it in *System Settings → General → Login Items*.
-- **Updates:** shows your **version** and checks for new versions automatically. When an update is available, it also appears in the menu. **Install and Relaunch** restores your display, installs the update, and reopens the app, back on if it was on.
+- **Open at login:** needed for schedules. macOS may ask you to approve it in *System Settings → General → Login Items*.
+- **Updates:** shows your **version** and checks for new versions automatically. When an update is available, it also appears in the menu. Beta.4 updates use the ZIP download or Terminal installer. For releases with a configured Developer ID publisher, **Install and Relaunch** restores the display, installs the verified update, and reopens the app, back on if it was on.
 - **Help:** reopen the welcome guide, or **Restore Display Now**.
 
 General settings groups everyday preferences under **Behavior**. Hover over a control for a short explanation, or expand **Tips and details** for more help. The pane scrolls when expanded tips or shortcut warnings need extra space.
@@ -198,7 +202,7 @@ Changing someone's screen needs to be trustworthy. E-Ink Mode records your origi
 
 ## Updating and uninstalling
 
-**Update:** use **Settings → General → Check Now** (or the *Update Available* menu item), or re-run the install command.
+**Update beta.4:** re-run the install command above, or download the latest Mac ZIP. **Settings → General → Check Now** can check availability; in-app installation requires a configured Developer ID publisher and is unavailable in this unsigned beta.
 
 **Uninstall:**
 1. Choose **Quit and Restore Display** from the menu.
@@ -228,6 +232,8 @@ E-Ink Mode has no accounts, analytics, or tracking. Update checks contact GitHub
 
 **I don't see the icon.** Your menu bar may be full. Hide a few other icons, or use the shortcut **⌘⇧E**. Opening the app again from Applications also points to it.
 
+**Clicking toggles the mode but doesn't turn the screen grayscale.** Check **Settings → Appearance → Grayscale**. Turning that preference off disables grayscale in the normal E-Ink profile. Leave it on for one-click grayscale; use the separate **Settings → Focus → Use grayscale during focus** preference to choose whether focus rounds change your display.
+
 **Does it process my screen?** No. It changes macOS settings rather than capturing or rendering your screen.
 
 ## For developers
@@ -239,7 +245,7 @@ Requires Xcode command-line tools (Swift 5.9+) and Python 3 for the CLI tests. N
 ./scripts/build.sh    # universal app + dist/E-Ink-Mode-<VERSION>.zip + install.sh
 ```
 
-The version comes from [`VERSION`](../VERSION). Set `EINK_SIGN_IDENTITY` (Developer ID Application) and `EINK_NOTARY_PROFILE` (a `notarytool` keychain profile) to produce a signed, notarized build. See [docs/RELEASING.md](RELEASING.md).
+The version comes from [`VERSION`](../VERSION). Set `EINK_SIGN_IDENTITY` (Developer ID Application), `EINK_TEAM_ID`, and `EINK_NOTARY_PROFILE` (a `notarytool` keychain profile) to produce a signed, notarized build. The current unsigned beta distribution uses `EINK_UNSIGNED_BETA=1`. See [docs/RELEASING.md](RELEASING.md).
 
 The app bundles a CLI with the same controls, sharing the same saved settings and recovery record:
 

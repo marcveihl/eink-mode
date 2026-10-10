@@ -2,37 +2,43 @@
 
 ## Automated
 
-`./scripts/test.sh` runs core tests and process-level CLI tests against an isolated simulated system (`EINK_SIMULATED=1`). Coverage:
+`./scripts/test.sh` runs core tests and process-level CLI tests against an isolated simulated system (`EINK_SIMULATED=1`). Beta.4 passed 97 Swift tests, CLI integration tests, and release guard checks. Coverage:
 
 - **Restoration:** exact per-display capture and restore, pre-existing accessibility settings, idempotent activation, partial failures and rollback, retry after restart, corrupt journal and config, restore with a damaged config, and never clearing settings the app didn't set.
 - **Temporary color:** lifts grayscale only, leaves the saved profile untouched, cancels early, expires on tick, catches up after sleep, clears when turned off, honors expiry across a crash and resume, and edits during color.
 - **First-run preview:** the one-off profile is never saved and restores exactly.
 - **Defaults:** a fresh install changes grayscale only.
 - **Schedule:** boundaries, DST skipped and repeated hours, catch-up, manual overrides across restarts, quit pausing versus logout resuming, and plain-language status (*tonight*, *this morning*, *tomorrow*, manual override).
-- **Focus sessions:** grayscale focus and color breaks, the rest of the profile kept, round completion and ownership of the mode, catch-up across several phases after sleep, stopping early with credited minutes, turning off mid-round without stopping the timer, timer-only rounds with no display session, skipping breaks, color peeks mid-focus that keep the timer running (and are refused on breaks), a daily goal that defaults to 4 and can be changed, the schedule deferring to a round, settings edits not disrupting a round, surviving a restart, validation, and old config files without focus settings.
+- **Focus sessions:** optional grayscale focus and color breaks, the rest of the profile kept, round completion and ownership of the mode, catch-up across several phases after sleep, stopping early with credited minutes, turning off mid-round without stopping the timer, timer-only rounds with no display session, skipping breaks, color peeks that keep the timer running (refused during automatically controlled color breaks), a daily goal that defaults to 4 and can be changed, the schedule deferring to a round, settings edits not disrupting a round, surviving a restart, validation, and old config files without focus settings.
 - **Stats:** streaks from today or yesterday, gaps, best streak, week labels, retained totals, best day, saved daily goals, unknown legacy goals excluded from goal attainment, retention pruning, and each motivational message.
 - **Keep display awake:** the power assertion is registered with macOS while held and gone once released; repeating a hold or a release is a no-op.
 - **Updates:** semantic version and pre-release ordering, release feed selection (drafts, missing archives, invalid tags), and bundle swap with rollback when the replacement is missing.
 - **CLI:** settings, validation, concurrency (48 mode commands and concurrent edits), temporary color, the evening preset, `version`, and recovery.
 
-`./scripts/build.sh` builds a universal (arm64 + x86_64) local app, verifies its signature, and writes the zip, checksum, and `install.sh`. The local ad hoc build is not installable by the trusted installer. A distribution build requires Developer ID signing, notarization, stapling, and a pinned Team ID. With a signed distribution archive, test the installer offline without touching a running copy:
+`./scripts/build.sh` builds a universal (arm64 + x86_64) local app, verifies its signature, and writes the zip, checksum, and `install.sh`. An ordinary local ad hoc build is not installable by the trusted installer. Signed distribution requires Developer ID signing, notarization, stapling, and a pinned Team ID. The explicit `EINK_UNSIGNED_BETA=1` build instead generates an installer pinned to that beta's exact checksum and version. Test either distribution archive offline without touching a running copy:
 
 ```sh
-EINK_NO_LAUNCH=1 EINK_INSTALL_DIR=/tmp/apps LC_ALL=C bash dist/install.sh dist/E-Ink-Mode-*.zip
+eink_qa_dir="$(mktemp -d)"
+eink_version="$(tr -d '[:space:]' < VERSION)"
+EINK_NO_LAUNCH=1 EINK_INSTALL_DIR="$eink_qa_dir" LC_ALL=C bash dist/install.sh "dist/E-Ink-Mode-$eink_version.zip"
 ```
 
 `EINK_SIMULATED=1 EINK_HOME=/tmp/qa ".../EinkBar" --qa-snapshots /tmp/shots` renders the welcome, settings, and menu screenshots for visual review.
+
+For an unsigned beta, also confirm that an altered ZIP is rejected before installation. Beta.4's actual archive passed isolated installation, checksum, signature, version, and universal-architecture verification.
 
 ## On a real Mac (before each release)
 
 Grayscale must be checked **with your eyes**. API readback doesn't prove pixels changed. Record your macOS version and displays.
 
 ### Install and updates
+Beta.4 is unsigned and unnotarized: browser downloads may require **Open Anyway**, and updates install manually through the ZIP or generated installer. Check update availability and the unsigned-beta installer separately. Gatekeeper-clean opening and in-app installation in steps 1, 2, and 5 are acceptance checks for a future signed release.
+
 1. Fresh account or clean Mac: download the release ZIP in a browser, unzip it, and open the app. It opens without **Open Anyway** or quarantine removal. Accept **Move to Applications**. The app relaunches from Applications.
 2. On the same clean Mac, run the one-line installer. The signed, notarized app lands in Applications and opens. Try an archive signed by a different Team ID: the installer rejects it without replacing the installed app.
 3. Open the app again while it's running. No second icon appears; a hint points at the existing icon.
 4. Run an older build from another folder while the new one is running. The version-choice alert names both versions. **Use Version …** quits the other copy and restores the display.
-5. Publish a signed, notarized test release with a higher version. **Check Now** finds it, the menu shows *Update Available*, and **Install and Relaunch** restores, swaps, reopens, and turns back on if it was on. **Settings → Version** shows the new number. A wrong-publisher or unnotarized archive is refused before the running copy exits or the bundle is replaced.
+5. Publish a signed, notarized test release with a higher version. **Check Now** finds it, the menu shows *Update Available*, and **Install and Relaunch** restores, swaps, reopens, and turns back on if it was on. **Settings → General → Version** shows the new number. A wrong-publisher or unnotarized archive is refused before the running copy exits or the bundle is replaced.
 
 ### First run
 6. The welcome window explains what will change. The preview runs 10 s, shows grayscale only, and returns to color. Closing the window mid-preview also returns to color.
@@ -45,6 +51,7 @@ Grayscale must be checked **with your eyes**. API readback doesn't prove pixels 
 10a. Hold-to-peek: enable **Hold to show color** (default **⌃⌥⌘C**), press and hold the combination, and confirm color appears while held. Release it and confirm the current focus phase, timed peek, or schedule state is restored. Test a lost key-up, sleep/lock, app deactivation, and a conflicting shortcut; a missed release must expire within the short lease and never leave color stuck.
 10b. Select **Fn / 🌐 Globe** and repeat the hold/release check from another app. Check that enabling or selecting Fn while already holding it waits for release and a fresh press. Switch back to a combination and confirm Fn no longer peeks. The Mac's configured Globe action remains unchanged; test with that action set to **Do Nothing** if it interferes.
 11. The shortcut switches from other apps. Choose each preset, then **None**. A conflicting shortcut shows the *already taken* message.
+11d. General settings: Behavior, Keyboard shortcuts, and Updates and help fit together with tips collapsed. Expand **Tips and details**, check scrolling on a small screen, and confirm shortcut conflict and Globe warnings remain visible. With **Appearance → Grayscale** on, clicking applies grayscale; with it off, the mode toggles without changing color. The separate focus grayscale preference does not disable ordinary click-to-grayscale.
 
 ### Keep display awake
 11a. Set **System Settings → Lock Screen → Turn display off** to 1 minute. Choose **Keep Display Awake**: `pmset -g assertions` lists *PreventUserIdleDisplaySleep* named for E-Ink Mode, and the display stays on past a minute of no input. The menu shows a checkmark and the line *Your display stays on until you switch this off*.
@@ -57,15 +64,15 @@ Grayscale must be checked **with your eyes**. API readback doesn't prove pixels 
 14. Sleep across a boundary and wake: it catches up. Log out and back in during the evening period (with **Open at login**): it's on again.
 
 ### Focus sessions
-15a. Settings → Focus to 5/1/2 and enable **Use grayscale during focus**. Start Focus: the menu bar shows a timer and countdown and the display turns grayscale. At 5:00 a sound plays, color returns, and the menu shows *Break · … then focus 2 of 2*. After the break, grayscale returns. After session 2, the display is restored and the *Round complete* hint shows today's count.
+15a. Settings → Focus to 5/1/2 and enable **Use grayscale during focus**. Start Focus: the menu bar shows a shaded icon and countdown and the display turns grayscale. At 5:00 a sound plays, color returns, and the menu shows *Break · … then focus 2 of 2*. After the break, grayscale returns. After session 2, the display is restored and the *Round complete* hint shows today's count.
 15j. Leave **Use grayscale during focus** off (the default). Start Focus with E-Ink Mode off: the countdown runs with an unshaded icon and no display change. Test pause/resume, skipping a break, and completion history. Start another round, turn E-Ink Mode on and off using the icon/shortcut, and change grayscale in Appearance: the same timer keeps running. During an opted-in grayscale round, turning off or changing grayscale releases automatic display switching through later phase boundaries.
-15b. **Skip Break** starts the next session immediately. **Stop Focus Session** mid-focus restores the display, and Focus Stats credits the minutes.
+15b. **Skip Break** starts the next session immediately. **Stop Focus Session** mid-focus restores a display owned by an opted-in grayscale round; a timer-only round leaves the display alone. Focus Stats credits active minutes in both cases.
 15c. Start a round while E-Ink Mode is already on: afterwards it stays on in grayscale.
 15d. Sleep mid-focus past the break and wake: the round catches up to the right phase.
-15f. Mid-focus **Color for 5 Minutes**: color appears, the focus countdown keeps running, and grayscale returns after the peek or on **Resume grayscale**. The item is hidden during breaks.
+15f. During an opted-in grayscale round, **Color for 5 Minutes** shows color while the focus countdown keeps running; grayscale returns after the peek or on **Resume grayscale**. The item is hidden during automatically controlled color breaks. A timer-only round follows the ordinary mode's temporary-color controls, including during breaks.
 15i. Pause mid-focus: the menu and Focus Stats show **Paused**, the remaining time stays fixed, and grayscale remains on. Resume after several minutes: the same round continues and the paused gap earns no minutes. Pause during a break: color stays on and the break clock freezes. Start a color peek before pausing focus and let it expire: grayscale returns, with the round still paused. Cross a schedule boundary while paused: it waits for the round to end. Stop while paused: only active focus minutes count. Quit while paused: the original display returns. Force-quit and relaunch: choose **Continue Session** and check that the round is still paused until you explicitly resume it.
 15g. Change the daily goal with the Focus Stats stepper: today's progress, message, and chart marker update. Earlier days keep their saved goal markers and goal-met results; legacy days with unknown goals show no marker and are excluded from the goal-met count.
-15h. Icon parity: the dot is ○ when off, ● when on or focusing, and ◐ during color peeks and focus breaks. **Wildcat mode** follows the same rule: outlined, filled, half-shaded. Check both sets in light and dark menu bars; the focus countdown shows beside either. The warning icon replaces both when something needs attention.
+15h. Icon parity: the dot is ○ in color (including timer-only focus with mode off), ● while grayscale is applied, and ◐ during color peeks and automatically controlled color breaks. **Wildcat mode** follows the same rule: outlined, filled, half-shaded. Check both sets in light and dark menu bars; the focus countdown shows beside either. The warning icon replaces both when something needs attention.
 15e. Focus Stats updates after each completed session; the 7-day chart and streak look right; hovering a bar shows its values.
 
 ### Restoration
