@@ -70,7 +70,18 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     evening = run("set", "schedule", "evening")["configuration"]["schedule"]
     assert evening == {"enabled": True, "on": 1260, "off": 420}
     run("set", "schedule", "off")
-    # Pomodoro: focus is grayscale, settings validate, stop restores, stats report.
+    # Pomodoro defaults to a timer with no display session; manual mode changes keep it running.
+    assert run("config")["focus"]["grayscale"] is False
+    timer = run("focus", "1")
+    assert "session" not in timer["state"] and timer["system"]["values"] == original
+    deadline = timer["state"]["focus"]["phaseEnds"]
+    run("on")
+    assert run("off")["state"]["focus"]["phaseEnds"] == deadline
+    assert run("toggle")["state"]["focus"]["phaseEnds"] == deadline
+    assert run("toggle")["state"]["focus"]["phaseEnds"] == deadline
+    run("focus", "stop")
+    # Opt-in grayscale focus, settings validation, restoration, and stats.
+    run("set", "focus-grayscale", "on")
     run("off"); run("set", "focus-minutes", "1"); run("set", "break-minutes", "1"); run("set", "focus-sessions", "2")
     run("set", "focus-sessions", "0", good=False)
     focus = run("focus")
@@ -95,6 +106,13 @@ with tempfile.TemporaryDirectory(prefix="eink-cli-") as directory:
     assert "focus" not in stopped["state"] and stopped["system"]["values"] == original
     stats = subprocess.run([binary, "stats"], env=env, text=True, capture_output=True, timeout=15)
     assert stats.returncode == 0 and "Today: 0 of 4 focus sessions" in stats.stdout, stats
+    focus = run("focus", "1")
+    deadline = focus["state"]["focus"]["phaseEnds"]
+    changed = run("set", "grayscale", "off")
+    assert changed["system"]["values"]["grayscale"] == {"flag": {"_0": False}}
+    assert changed["state"]["focus"]["phaseEnds"] == deadline
+    assert run("off")["state"]["focus"]["phaseEnds"] == deadline
+    run("focus", "stop")
     # A resumed process restores the durable journal left by a previous process.
     run("on")
     run("resume")

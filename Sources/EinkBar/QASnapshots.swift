@@ -94,7 +94,13 @@ enum QASnapshots {
                 model.clickToFlip = true
             }),
             ("menu-color", { try? controller.startTemporaryColor(for: 272) }),
+            ("menu-focus-timer", {
+                try? controller.setMode(false)
+                try? controller.startFocus(sessions: 4, now: Date().addingTimeInterval(-6.5 * 60))
+            }),
             ("menu-focus", {
+                try? controller.stopFocus()
+                try? controller.edit { $0.focus.grayscale = true }
                 try? controller.endTemporaryColor(); try? controller.setMode(false)
                 try? controller.startFocus(sessions: 4, now: Date().addingTimeInterval(-6.5 * 60))
             }),

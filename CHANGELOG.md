@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0-beta.4 (Focus without grayscale)
+
+- **Optional grayscale focus:** Settings → Focus → Use grayscale during focus is off by default, including when upgrading older preferences. Focus and break timers can run with E-Ink Mode off, leaving the display untouched. Opt in for grayscale focus and color breaks on your next round.
+- **Independent display controls:** turning E-Ink Mode off, using the mode shortcut, or changing the grayscale appearance setting keeps the Pomodoro timer running and releases automatic display switching for that round. Only Stop Focus Session or quitting ends it early.
+- Timer-only rounds retain pause/resume, break skipping, restart recovery, completion history, and countdowns. The menu bar icon follows the actual grayscale state.
+- CLI: `eink set focus-grayscale on|off` configures future rounds.
+- **Compact General settings:** group everyday preferences, keep the hold-color shortcut beside its toggle, and tuck longer explanations into tooltips and expandable tips. The window stays within the screen height and scrolls when more space is needed.
+
 ## 0.10.0-beta.3 (Focus controls and held color)
 
 - **Hold to show color:** enable a dedicated hold shortcut in Settings → General. Choose Fn/Globe alone or a modifier combination; releasing returns to the current display state without replacing a timed color peek. Fn/Globe keeps its existing macOS action.

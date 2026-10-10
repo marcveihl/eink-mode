@@ -2,14 +2,14 @@
 
 ## Automated
 
-`./scripts/test.sh` runs 68 core tests and process-level CLI tests against an isolated simulated system (`EINK_SIMULATED=1`). Coverage:
+`./scripts/test.sh` runs core tests and process-level CLI tests against an isolated simulated system (`EINK_SIMULATED=1`). Coverage:
 
 - **Restoration:** exact per-display capture and restore, pre-existing accessibility settings, idempotent activation, partial failures and rollback, retry after restart, corrupt journal and config, restore with a damaged config, and never clearing settings the app didn't set.
 - **Temporary color:** lifts grayscale only, leaves the saved profile untouched, cancels early, expires on tick, catches up after sleep, clears when turned off, honors expiry across a crash and resume, and edits during color.
 - **First-run preview:** the one-off profile is never saved and restores exactly.
 - **Defaults:** a fresh install changes grayscale only.
 - **Schedule:** boundaries, DST skipped and repeated hours, catch-up, manual overrides across restarts, quit pausing versus logout resuming, and plain-language status (*tonight*, *this morning*, *tomorrow*, manual override).
-- **Focus sessions:** grayscale focus and color breaks, the rest of the profile kept, round completion and ownership of the mode, catch-up across several phases after sleep, stopping early with credited minutes, turning off mid-round, skipping breaks, color peeks mid-focus that keep the timer running (and are refused on breaks), a daily goal that defaults to 4 and can be changed, the schedule deferring to a round, settings edits not disrupting a round, surviving a restart, validation, and old config files without focus settings.
+- **Focus sessions:** grayscale focus and color breaks, the rest of the profile kept, round completion and ownership of the mode, catch-up across several phases after sleep, stopping early with credited minutes, turning off mid-round without stopping the timer, timer-only rounds with no display session, skipping breaks, color peeks mid-focus that keep the timer running (and are refused on breaks), a daily goal that defaults to 4 and can be changed, the schedule deferring to a round, settings edits not disrupting a round, surviving a restart, validation, and old config files without focus settings.
 - **Stats:** streaks from today or yesterday, gaps, best streak, week labels, retained totals, best day, saved daily goals, unknown legacy goals excluded from goal attainment, retention pruning, and each motivational message.
 - **Keep display awake:** the power assertion is registered with macOS while held and gone once released; repeating a hold or a release is a no-op.
 - **Updates:** semantic version and pre-release ordering, release feed selection (drafts, missing archives, invalid tags), and bundle swap with rollback when the replacement is missing.
@@ -57,7 +57,8 @@ Grayscale must be checked **with your eyes**. API readback doesn't prove pixels 
 14. Sleep across a boundary and wake: it catches up. Log out and back in during the evening period (with **Open at login**): it's on again.
 
 ### Focus sessions
-15a. Settings → Focus to 5/1/2. Start Focus: the menu bar shows a timer and countdown and the display turns grayscale. At 5:00 a sound plays, color returns, and the menu shows *Break · … then focus 2 of 2*. After the break, grayscale returns. After session 2, the display is restored and the *Round complete* hint shows today's count.
+15a. Settings → Focus to 5/1/2 and enable **Use grayscale during focus**. Start Focus: the menu bar shows a timer and countdown and the display turns grayscale. At 5:00 a sound plays, color returns, and the menu shows *Break · … then focus 2 of 2*. After the break, grayscale returns. After session 2, the display is restored and the *Round complete* hint shows today's count.
+15j. Leave **Use grayscale during focus** off (the default). Start Focus with E-Ink Mode off: the countdown runs with an unshaded icon and no display change. Test pause/resume, skipping a break, and completion history. Start another round, turn E-Ink Mode on and off using the icon/shortcut, and change grayscale in Appearance: the same timer keeps running. During an opted-in grayscale round, turning off or changing grayscale releases automatic display switching through later phase boundaries.
 15b. **Skip Break** starts the next session immediately. **Stop Focus Session** mid-focus restores the display, and Focus Stats credits the minutes.
 15c. Start a round while E-Ink Mode is already on: afterwards it stays on in grayscale.
 15d. Sleep mid-focus past the break and wake: the round catches up to the right phase.

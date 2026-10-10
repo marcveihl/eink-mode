@@ -40,7 +40,7 @@ struct FocusStatsView: View {
                     .disabled(model.needsRecovery)
                     Button("Stop Focus Session") { model.stopFocus() }
                 } else {
-                    Text("\(model.focusSettings.sessions) × \(model.focusSettings.focusMinutes) min focus, \(model.focusSettings.breakMinutes) min color breaks")
+                    Text("\(model.focusSettings.sessions) × \(model.focusSettings.focusMinutes) min focus, \(model.focusSettings.breakMinutes) min breaks")
                         .font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Button("Start Focus Session", action: start).keyboardShortcut(.defaultAction)
@@ -156,9 +156,11 @@ struct FocusSettingsView: View {
             let focus = model.focusSettings
             Section {
                 Stepper("Focus for \(focus.focusMinutes) minutes", value: binding(\.focusMinutes), in: 5...90, step: 5)
-                Stepper("Color break for \(focus.breakMinutes) minutes", value: binding(\.breakMinutes), in: 1...30)
+                Stepper("Break for \(focus.breakMinutes) minutes", value: binding(\.breakMinutes), in: 1...30)
                 Stepper("\(focus.sessions) session\(focus.sessions == 1 ? "" : "s") per round", value: binding(\.sessions), in: 1...12)
-                Text("Each session is grayscale. Between sessions, color comes back for your break, then grayscale returns on its own. After the last session, your display goes back to how it was.")
+                Toggle("Use grayscale during focus", isOn: Binding(get: { model.focusSettings.grayscale },
+                    set: { value in model.change { $0.focus.grayscale = value } }))
+                Text("Off by default: focus and break timers leave your display as it is. When enabled, focus uses grayscale and breaks use color, then your display returns to how it was. Applies to the next round.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
             Section("Daily tracker") {
@@ -173,7 +175,7 @@ struct FocusSettingsView: View {
             Section("Cues") {
                 Toggle("Play a sound when focus and breaks start", isOn: $model.focusSound)
                 Toggle("Show the countdown in the menu bar", isOn: $model.menuBarCountdown)
-                Text("Changes apply to the next round; a round in progress keeps its timing. Pause keeps the current phase and remaining time. Turning E-Ink Mode off ends the round, and active minutes already focused still count.")
+                Text("A round in progress keeps its timing. Pause keeps the current phase and remaining time. Changing grayscale or turning E-Ink Mode off keeps the timer running and ends automatic display switching for this round. Stop Focus Session or quit to end the round; active minutes already focused still count.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }

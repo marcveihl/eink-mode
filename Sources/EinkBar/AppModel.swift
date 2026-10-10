@@ -52,6 +52,11 @@ final class AppModel: ObservableObject {
     init(controller: Controller) { self.controller = controller }
 
     var active: Bool { status?.active == true }
+    var isGrayscale: Bool { status?.system.values["grayscale"] == .flag(true) }
+    var showingTemporaryColor: Bool {
+        active && !isGrayscale && (colorRemaining != nil || holdingColor ||
+            (focus?.controlsGrayscale == true && focus?.phase == .rest))
+    }
     var colorRemaining: TimeInterval? { status?.temporaryColorRemaining() }
     var holdingColor: Bool { status?.holdColorActive == true }
     var focus: FocusSession? { status?.focusing == true ? status?.state.focus : nil }

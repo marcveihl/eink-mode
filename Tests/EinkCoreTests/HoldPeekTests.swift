@@ -37,7 +37,7 @@ final class HoldPeekTests: XCTestCase {
         XCTAssertEqual(gray, .flag(true))
 
         var config = try controller.status().configuration
-        config.focus.focusMinutes = 1; config.focus.breakMinutes = 1; config.focus.sessions = 2
+        config.focus.focusMinutes = 1; config.focus.breakMinutes = 1; config.focus.sessions = 2; config.focus.grayscale = true
         try controller.update(config, now: start.addingTimeInterval(62))
         try controller.startFocus(now: start.addingTimeInterval(62))
         try controller.tick(now: start.addingTimeInterval(122))
@@ -85,7 +85,7 @@ final class HoldPeekTests: XCTestCase {
     }
 
     func testSettingsEditCancelsHoldAndFocusTimeKeepsRunning() throws {
-        var config = Configuration(); config.focus.focusMinutes = 1
+        var config = Configuration(); config.focus.focusMinutes = 1; config.focus.grayscale = true
         try controller.update(config, now: start)
         try controller.startFocus(now: start)
         try controller.beginHoldColor(now: start.addingTimeInterval(5))
